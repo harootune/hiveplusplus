@@ -18,6 +18,6 @@ int main()
     //     std::cout << std::endl;
     // }
 
-    ZobristHash zHash(4);
-    // std::cout << "Done" << std::endl;
+    ZobristHash zHash;
+    std::cout << "Done" << std::endl;
 };

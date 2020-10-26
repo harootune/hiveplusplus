@@ -18,11 +18,12 @@ struct QPair
 class ZobristTable
 {
     public:
-        void insert(std::vector<int> coords);
-        bool find(std::vector<int> coords);
+        void insert(std::vector<int> coords, int piece, unsigned long int hash);
+        unsigned long int find(std::vector<int> coords, int piece);
+        bool check(std::vector<int> coords);
     
     private:
-        std::map<int, std::map<int, std::map<int, bool>>>  _map;
+        std::map<int, std::map<int, std::map<int, std::map<int, std::map<int, unsigned long int>>>>>  _map;
 };
 
 class ZobristHash
@@ -30,14 +31,20 @@ class ZobristHash
     public:
         ZobristHash();
         ZobristHash(int numPieces);
+        ZobristHash(std::map<int, int>);
 
         int getCount();
     
     private:
         int _numPieces;
+        unsigned long int _next;
         ZobristTable _bitTable;
 
-        void _initTable();
+        unsigned long int _getNextRand();
+        void _initTable(std::map<int, int>);
+
+        // temporary piece config for debugging, REMOVE
+        static std::map<int, int> _defaultConfig;
 };
 
 #endif

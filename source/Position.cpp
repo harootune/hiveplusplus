@@ -12,7 +12,7 @@ std::vector<std::vector<int>> Position::_translations
 
 Position::Position()
 {
-    _coords = {0, 0, 0};
+    _coords = {0, 0, 0, 0};
 }
 
 Position::Position(std::vector<int> coords)
