@@ -1,6 +1,6 @@
 #include "Position.h"
 
-std::vector<std::vector<int>> Position::_translations 
+const std::vector<std::vector<int>> Position::_translations
 {
     {0, 1, -1},
     {1, 0, -1},
@@ -33,7 +33,7 @@ void Position::setCoords(std::vector<int> c)
 std::vector<int> Position::getNeighbor(int direction)
 {
     std::vector<int> neighbor = _coords;
-    std::vector<int> &translation = Position::_translations[direction];
+    std::vector<int> translation = Position::_translations[direction];
 
     for (int i = 0; i < 3; i++)
     {
@@ -55,6 +55,26 @@ std::vector<std::vector<int>> Position::getAllNeighbors()
     return neighbors;
 };
 
+Piece::Piece()
+{
+    code = -1;
+    label = "EMPTY";
+    _coords = {0, 0, 0, 0};
+};
+
+Piece::Piece(std::vector<int> coords)
+{
+    code = -1;
+    label = "EMPTY";
+    _coords = coords;
+};
+
+Piece::Piece(std::vector<int> coords, int c, std::string l)
+{
+    code = c;
+    label = l;
+    _coords = coords;
+};
 
 
 

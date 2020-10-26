@@ -2,6 +2,7 @@
 #ifndef _POSITION_
 #define _POSITION_
 #include <vector>
+#include <string>
 
 enum Directions
 {
@@ -19,15 +20,30 @@ class Position
         Position();
         Position(std::vector<int> coords);
 
-        std::vector<int> getCoords();
-        void setCoords(std::vector<int> c);
-        std::vector<int> getNeighbor(int direction);
-        std::vector<std::vector<int>> getAllNeighbors();
+        virtual std::vector<int> getCoords();
+        virtual void setCoords(std::vector<int> c);
+        virtual std::vector<int> getNeighbor(int direction);
+        virtual std::vector<std::vector<int>> getAllNeighbors();
 
-    private:
+        ~Position() {};
+
+    protected:
         std::vector<int> _coords;
 
-        static std::vector<std::vector<int>> _translations;
+        const static std::vector<std::vector<int>> _translations;
+};
+
+class Piece: public Position
+{
+    public:
+        Piece();
+        Piece(std::vector<int> coords);
+        Piece(std::vector<int> coords, int c, std::string l);
+
+        int code;
+        std::string label;
+
+        ~Piece() {};
 };
 
 #endif

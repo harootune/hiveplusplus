@@ -6,6 +6,13 @@
 #include <map>
 #include <vector>
 
+/* TODO
+
+1. Convert nested map to composite key map
+2. Rewrite insert and delete operations if necessary, or remove
+
+*/
+
 struct QPair
 {
     QPair();
