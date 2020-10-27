@@ -6,12 +6,6 @@
 #include <map>
 #include <vector>
 
-/* TODO
-
-1. Convert nested map to composite key map
-2. Rewrite insert and delete operations if necessary, or remove
-
-*/
 
 struct QPair
 {
@@ -27,10 +21,10 @@ class ZobristTable
     public:
         void insert(std::vector<int> coords, int piece, unsigned long int hash);
         unsigned long int find(std::vector<int> coords, int piece);
-        bool check(std::vector<int> coords);
+        bool check(std::vector<int> coords, int piece);
     
     private:
-        std::map<int, std::map<int, std::map<int, std::map<int, std::map<int, unsigned long int>>>>>  _map;
+        std::map<std::vector<int>, unsigned long int>  _map;
 };
 
 class ZobristHash

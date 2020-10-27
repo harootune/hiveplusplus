@@ -1,4 +1,5 @@
 #pragma once
+
 #ifndef _POSITION_
 #define _POSITION_
 #include <vector>
@@ -6,12 +7,12 @@
 
 enum Directions
 {
-    Up,
-    UpRight,
+    Right,
     DownRight,
-    Down,
     DownLeft,
-    Upleft
+    Left,
+    UpLeft,
+    UpRight
 };
 
 class Position

@@ -1,5 +1,8 @@
 #include "source/Position.h"
 #include "source/ZobristHash.h"
+#include "source/Move.h"
+#include "source/PieceTable.h"
+#include "source/Board.h"
 #include <iostream>
 
 int main()
@@ -19,5 +22,19 @@ int main()
     // }
 
     ZobristHash zHash;
+
+    PieceTable pTable;
+
+    //testing movement
+    Move moveA("wQ");
+    pTable.update(moveA);
+    Move moveB("bQ", "wQ", 3, true);
+    pTable.update(moveB);
+    Move moveC("bQ", "wQ", 4);
+    pTable.update(moveC);
+    pTable.undoLast();
+    pTable.undoLast();
+    pTable.undoLast();
+
     std::cout << "Done" << std::endl;
 };
