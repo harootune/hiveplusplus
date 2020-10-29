@@ -3,6 +3,7 @@
 #include "source/Move.h"
 #include "source/PieceTable.h"
 #include "source/Board.h"
+#include "source/PieceInfo.h"
 #include <iostream>
 
 int main()
@@ -21,20 +22,33 @@ int main()
     //     std::cout << std::endl;
     // }
 
-    ZobristHash zHash;
+    std::map<int, int> defaultConfig
+    {
+        {PieceCodes::wQ, 1},
+        {PieceCodes::wA, 3},
+        {PieceCodes::wB, 2},
+        {PieceCodes::wG, 3},
+        {PieceCodes::wS, 2},
+        {PieceCodes::bQ, 1},
+        {PieceCodes::bA, 3},
+        {PieceCodes::bB, 2},
+        {PieceCodes::bG, 3},
+        {PieceCodes::bS, 2}
+    };
 
-    PieceTable pTable;
+    Board board(defaultConfig);
 
     //testing movement
     Move moveA("wQ");
-    pTable.update(moveA);
+    board.makeMove(moveA);
     Move moveB("bQ", "wQ", 3, true);
-    pTable.update(moveB);
+    board.makeMove(moveB);
     Move moveC("bQ", "wQ", 4);
-    pTable.update(moveC);
-    pTable.undoLast();
-    pTable.undoLast();
-    pTable.undoLast();
+    std::vector<Move> moves = board.genAllMoves();
+    board.makeMove(moveC);
+    board.undoLast();
+    board.undoLast();
+    board.undoLast();
 
     std::cout << "Done" << std::endl;
 };

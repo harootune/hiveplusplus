@@ -4,6 +4,7 @@
 #define _POSITION_
 #include <vector>
 #include <string>
+#include <map>
 
 enum Directions
 {
@@ -26,12 +27,19 @@ class Position
         virtual std::vector<int> getNeighbor(int direction);
         virtual std::vector<std::vector<int>> getAllNeighbors();
 
+        static std::vector<int> convertDirection(int dir);
+        static int convertTranslation(const std::vector<int> &trans);
+        static int findDirection(const std::vector<int> &from, const std::vector<int> &to);
+
         ~Position() {};
 
     protected:
         std::vector<int> _coords;
 
-        const static std::vector<std::vector<int>> _translations;
+        const static std::vector<std::vector<int>> _dirToTranslations;
+        const static std::map<std::vector<int>, int> _translationsToDir;
+
+        
 };
 
 class Piece: public Position
@@ -43,6 +51,7 @@ class Piece: public Position
 
         int code;
         std::string label;
+        bool isTopped;
 
         ~Piece() {};
 };

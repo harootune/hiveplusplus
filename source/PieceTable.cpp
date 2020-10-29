@@ -30,12 +30,84 @@ Piece *PieceTable::find(std::vector<int> coords)
     };
 };
 
+std::vector<int> PieceTable::top(std::vector<int> coords)
+{
+    std::vector<int> outerCoords;
+    outerCoords.insert(outerCoords.begin(), coords.begin(), coords.begin()+3);
+
+    try
+    {
+        std::map<int, Piece*> inner = _coordsToPiece.at(outerCoords);
+        if (!inner.empty())
+        {
+            std::map<int, Piece*>::reverse_iterator topPiece = inner.rbegin();
+            outerCoords.push_back(topPiece->first);
+        }
+        else
+        {
+            outerCoords.push_back(0);
+        }
+        return outerCoords;
+    }
+    catch (std::out_of_range &e)
+    {
+        outerCoords.push_back(0);
+        return outerCoords;
+    };
+};
+
+std::vector<std::vector<int>> PieceTable::adjacencies(std::string label, bool empty)
+{
+    Piece *neighbor;
+    std::vector<std::vector<int>> existingNeighbors;
+
+    Piece *target = find(label);
+    // empty check here
+    std::vector<std::vector<int>> neighborCoords = target->getAllNeighbors();
+    
+    for (int i = 0; i < 6; i++)
+    {
+        neighborCoords[i] = top(neighborCoords[i]);
+        neighbor = find(neighborCoords[i]);
+        if ((neighbor != nullptr && !empty) ||
+            (neighbor == nullptr && empty))
+        {
+            existingNeighbors.push_back(neighborCoords[i]);
+        };
+    };
+
+    return existingNeighbors;
+};
+
+std::vector<std::vector<int>> PieceTable::adjacencies(Position *pos, bool empty)
+{
+    Piece *neighbor;
+    std::vector<std::vector<int>> existingNeighbors;
+
+    std::vector<std::vector<int>> neighborCoords = pos->getAllNeighbors();
+    
+    for (int i = 0; i < 6; i++)
+    {
+        neighborCoords[i] = top(neighborCoords[i]);
+        neighbor = find(neighborCoords[i]);
+        if ((neighbor != nullptr && !empty) ||
+            (neighbor == nullptr && empty))
+        {
+            existingNeighbors.push_back(neighborCoords[i]);
+        };
+    };
+
+    return existingNeighbors;
+};
+
 void PieceTable::update(Move move, bool reversable)
 {
     int i;
     Piece *target;
+    Piece *underPiece;
     std::vector<int> outer;
     std::vector<int> newCoords;
+    std::vector<int> underCoords;
     
     if (reversable)
     {
@@ -59,6 +131,23 @@ void PieceTable::update(Move move, bool reversable)
         outer = {oldCoords[0], oldCoords[1], oldCoords[2]};
         // this leaves behind the x ,y, z key but breaks searches to full coords by removing v
         _coordsToPiece[outer].erase(oldCoords[3]);
+
+        // track topping
+        if (newCoords[3] > 0)
+        {
+            underCoords = newCoords;
+            underCoords[3]--;
+            underPiece = find(underCoords);
+            underPiece->isTopped = true; // letting this fail for now to alert to junk underCoords
+        };
+
+        if (oldCoords[3] > 0)
+        {
+            underCoords = oldCoords;
+            underCoords[3]--;
+            underPiece = find(underCoords);
+            underPiece->isTopped = false;
+        };
     }
     else
     {
@@ -92,6 +181,14 @@ void PieceTable::remove(std::string pieceLabel)
     Piece *target = find(pieceLabel);
     std::vector<int> coords = target->getCoords();
     std::vector<int> outer {coords[0], coords[1], coords[2]};
+
+    if (coords[3] > 0)
+    {
+        std::vector<int> underCoords = coords;
+        underCoords[3]--;
+        Piece *underPiece = find(underCoords); // also letting this fail on bad underCoords
+        underPiece->isTopped = false;
+    };
     
     _coordsToPiece[outer].erase(coords[3]);
     _labelToPiece.erase(pieceLabel);
@@ -166,6 +263,23 @@ void PieceTable::_storeUndo(Move move)
             };   
         };
     };
+};
+
+std::vector<Piece*> PieceTable::getColorPieces(bool white)
+{
+    std::map<std::string, Piece*>::iterator labelIt;
+    std::vector<Piece*> targets;
+    char key = white ? 'w' : 'b';
+
+    for (labelIt = _labelToPiece.begin(); labelIt != _labelToPiece.end(); labelIt++)
+    {
+        if (labelIt->first[0] == key)
+        {
+            targets.push_back(labelIt->second);
+        };
+    };
+
+    return targets;
 };
 
 PieceTable::~PieceTable()

@@ -15,11 +15,17 @@ class PieceTable
 
         Piece *find(std::string label);
         Piece *find(std::vector<int> coords);
+        std::vector<int> top(std::vector<int> coords);
+        // do we need an overload for top?
+        std::vector<std::vector<int>> adjacencies(std::string label, bool empty = false);
+        std::vector<std::vector<int>> adjacencies(Position *pos, bool empty = false);
+
         void update(Move move, bool reversable = true);
         void remove(std::string pieceLabel);
         void undoLast();
         bool empty();
         std::string nextLabel(int code);
+        std::vector<Piece*> getColorPieces(bool white);
 
         ~PieceTable();
 
