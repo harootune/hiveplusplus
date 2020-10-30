@@ -21,18 +21,11 @@ enum GameStates
 
 struct _OneHiveInfo
 {
-    int time;
+    int time = 0;
     std::set<std::vector<int>> articulations;
     std::map<std::vector<int>, int> entryTime;
-    std::map<std::vector<int>, int> outDegree;
-    std::map<std::vector<int>, std::vector<int>> parent;
-    std::map<std::vector<int>, std::vector<int>> earliestAncestor;
-    std::map<std::vector<int>, bool> discovered;
-    std::map<std::vector<int>, bool> processed;
-    std::vector<int> root;
-
-    _OneHiveInfo() {};
-    _OneHiveInfo(std::vector<int> r) { root = r; };
+    std::map<std::vector<int>, int> earliestTime;
+    std::map<std::vector<int>, bool> visited;
 };
 
 class Board
@@ -57,14 +50,16 @@ class Board
         ZobristHash _hash;
         PieceTable _pieces;
 
-        // move generation helpers
         bool _validateMove(std::vector<std::string> move);
+        
+        // one hive rule enforcement
         std::set<std::vector<int>> _oneHiveCheck(std::vector<int> start);
-        void _oneHiveSearch(std::vector<int> &location, _OneHiveInfo *info);
-        void _oneHiveEdge(std::vector<int> &from, std::vector<int> &to, _OneHiveInfo *info);
-        int _oneHiveClass(std::vector<int> &from, std::vector<int> &to, _OneHiveInfo *info);
+        void _oneHiveSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info);
                             
-
+        // move generation helpers
+        void _moveSearch(std::string label, int code, Position *current,
+                        std::vector<Move> &moves, std::set<std::vector<int>> &seen, int depth);
+        void _hopperSearch(std::string label, int direction, Position *current, std::vector<Move> &moves);
         std::vector<Move> _genPlacementMoves();
         std::vector<Move> _genQueenMoves(std::string label);
         std::vector<Move> _genAntMoves(std::string label);

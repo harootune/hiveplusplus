@@ -43,9 +43,11 @@ int main()
     board.makeMove(moveA);
     Move moveB("bQ", "wQ", 3, true);
     board.makeMove(moveB);
-    Move moveC("bQ", "wQ", 4);
-    std::vector<Move> moves = board.genAllMoves();
+    Move moveC("wA1", "wQ", 0, true);
     board.makeMove(moveC);
+    Move moveD("bG1", "bQ", 3, true);
+    board.makeMove(moveD);
+    std::vector<Move> moves = board.genAllMoves();
     board.undoLast();
     board.undoLast();
     board.undoLast();

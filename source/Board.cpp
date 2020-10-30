@@ -8,12 +8,14 @@ Board::Board()
     _white = true;   
 };
 
+
 Board::Board(std::map<int, int> pieceConfig)
 {
     _turn = 0;
     _white = true;   
     _pieceConfig = pieceConfig;
 };
+
 
 void Board::makeMove(Move move)
 {
@@ -32,6 +34,7 @@ void Board::makeMove(Move move)
     _white = !_white;
 };
 
+
 void Board::undoLast()
 {
     _pieces.undoLast();
@@ -39,110 +42,78 @@ void Board::undoLast()
     _white = !_white;
 };
 
+
 bool Board::_validateMove(std::vector<std::string> move)
 {
     return true;
 };
 
+
 std::set<std::vector<int>> Board::_oneHiveCheck(std::vector<int> start)
+// returns a set of articulation vertices for the current board.
 {
     _OneHiveInfo info;
+    std::vector<int> rootParent {-1, -1, -1, -1};
 
     // this will break if there are no pieces on the board
-    _oneHiveSearch(start, &info);
+    _oneHiveSearch(rootParent, start, &info);
 
     return info.articulations;
 };
 
-void Board::_oneHiveSearch(std::vector<int> &location, _OneHiveInfo *info)
-// This is an implementation of the articulation vertex discovery algorithm described in Skiena
-{  
-    Position current(location);
-    std::vector<std::vector<int>> edges = _pieces.adjacencies(&current);
-    std::vector<std::vector<int>>::iterator edgeIt;
+
+void Board::_oneHiveSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info)
+// This is an implementation of a linear-time articulation vertext discovery algorithm described here:
+// https://cp-algorithms.com/graph/cutpoints.html
+{
     
-    // early processing
+    // increment our timer and update our contextual information about this node
+    Position current(location);
+    int children = 0; // child count of current node
     info->time++;
+    info->visited[location] = true;
     info->entryTime[location] = info->time;
-    info->discovered[location] = true;
-    info->earliestAncestor[location] = location;
+    info->earliestTime[location] = info->time;
+    std::vector<int> rootParent {-1, -1, -1, -1};
 
-    // edge processing
-    for (edgeIt = edges.begin(); edgeIt != edges.end(); edgeIt++)
-    {
-        if (!info->discovered[*edgeIt])
-        {
-            info->parent[*edgeIt] = location;
-            _oneHiveEdge(location, *edgeIt, info);
-            _oneHiveSearch(*edgeIt, info);
-        }
-        else if (!info->processed[*edgeIt] && info->parent[location] != *edgeIt)
-        {
-            _oneHiveEdge(location, *edgeIt, info);
-        };
-    };
+    // iterate through every adjacency
+    std::vector<std::vector<int>> adjacencies = _pieces.adjacencies(&current);
+    std::vector<std::vector<int>>::iterator adjacentIt = adjacencies.begin();
 
-    // late processing
-    if (location == info->root)
+    for (adjacentIt = adjacencies.begin(); adjacentIt != adjacencies.end(); adjacentIt++)
     {
-        if (info->outDegree[location] > 1)
+        if (*adjacentIt != parent) // ignore the edge back to the parent
         {
-            info->articulations.insert(location);
-        }; 
-    }
-    else if (info->parent[location] != info->root)
-    {
-        if (info->earliestAncestor[location] == info->parent[location])
-        {
-            info->articulations.insert(info->parent[location]);
-        }
-        else if (info->earliestAncestor[location] == location)
-        {
-            info->articulations.insert(info->parent[location]);
-
-            if (info->outDegree[location] > 0)
+            if (info->visited[*adjacentIt]) // this is a back edge
             {
-                info->articulations.insert(location);
+                // earliest we can get back to is the entry time of the back node
+                info->earliestTime[location] = std::min(info->earliestTime[location], info->entryTime[*adjacentIt]);
+            }
+            else // this is a tree edge
+            {  
+                // recur the dfs
+                _oneHiveSearch(location, *adjacentIt, info);
+
+                // earliest we can get back to is the earliest node the child can get to
+                info->earliestTime[location] = std::min(info->earliestTime[location], info->earliestTime[*adjacentIt]);
+
+                // if we can go no further back then the current node, this is an articulation vertex
+                if (info->earliestTime[*adjacentIt] >= info->entryTime[location] && parent != rootParent)
+                {
+                    info->articulations.insert(location);
+                }
+                children++;
             };
         };
     };
 
-    // back up ancestors
-    // if the earliest reachable ancestor of our current node is earlier than the node's parent
-    // then parent's earliest reachable ancestor is this node's earliest reachable ancestor
-    if (info->entryTime[info->earliestAncestor[location]] <
-        info->entryTime[info->earliestAncestor[info->parent[location]]])
+    
+    if (parent == rootParent && children > 1)
     {
-        info->earliestAncestor[info->parent[location]] = info->earliestAncestor[location];
-    };
-
-    info->time++;
-    info->processed[location] = true;
-};
-
-void Board::_oneHiveEdge(std::vector<int> &from, std::vector<int> &to, _OneHiveInfo *info)
-{
-    int edgeClass = _oneHiveClass(from, to, info);
-
-    if (edgeClass == 0)
-    {
-        info->outDegree[from]++;
-    }
-    else if (edgeClass == 1 && info->parent[from] != to)
-    {
-        if (info->entryTime[to] < info->entryTime[info->earliestAncestor[from]])
-        {
-            info->earliestAncestor[from] = to;
-        };
+        info->articulations.insert(location);
     };
 };
 
-int Board::_oneHiveClass(std::vector<int> &from, std::vector<int> &to, _OneHiveInfo *info)
-{
-    if (info->parent[to] == from) { return 0; }; // tree edge - this edge leads to an unexplored part of the tree
-    if (info->discovered[to] && !info->processed[to]) { return 1; }; // back edge - this tree points back into the tree we've already explored
-    return 2;
-};
 
 std::vector<Move> Board::_genPlacementMoves()
 {
@@ -249,35 +220,185 @@ std::vector<Move> Board::_genPlacementMoves()
     return moves;
 };
 
+
+void Board::_moveSearch(std::string label, int code, Position *current, 
+                        std::vector<Move> &moves, std::set<std::vector<int>> &seen, int depth)
+{
+    if (depth > 0 || code % 5 == 1)
+    {
+        int direction;
+        int left;
+        int right;
+
+        Position nextSpace;
+        std::vector<std::vector<int>> nextAdj;
+        std::vector<std::vector<int>>::iterator nextIt;
+        Piece *nextReference;
+        Piece *original;
+        std::vector<std::vector<int>> empties;
+        std::vector<std::vector<int>>::iterator emptyIt;
+        
+        // if we are currently working with a beetle, we want to look at the top of every nearby piece
+        if (code % 5 == 2)
+        {
+            std::vector<int> topCoord;
+
+            for (int i = 0; i < 6; i++)
+            {
+                topCoord = _pieces.top(current->getNeighbor(i));
+                empties.push_back(topCoord);
+            };
+        }
+        else
+        {
+            empties = _pieces.adjacencies(current, true);
+        }
+        
+        // for every empty adjacency to our current space
+        for (emptyIt = empties.begin(); emptyIt != empties.end(); emptyIt++)
+        {   
+            // if we haven't moved through this spot already, continue
+            if (seen.find(*emptyIt) == seen.end())
+            {
+                // find the direction of the empty spot and its neighbors
+                direction = Position::findDirection(current->getCoords(), *emptyIt);
+                left = direction == 0 ? 5 : direction - 1;
+                right = direction == 5 ? 0 : direction + 1;
+
+                // if at least one neighbor is empty, continue
+                if (_pieces.find(current->getNeighbor(left)) == nullptr ||
+                    _pieces.find(current->getNeighbor(right)) == nullptr)
+                
+                {
+                    nextSpace = Position(*emptyIt);
+                    nextAdj = _pieces.adjacencies(&nextSpace);
+
+                    // if the empty spot has a neighbor, continue
+                    if (!nextAdj.empty())
+                    {
+                        // check if the neighbor is our original piece
+                        nextReference = nullptr;
+                        original = _pieces.find(label);
+
+                        for (nextIt = nextAdj.begin(); nextIt != nextAdj.end(); nextIt++)
+                        {
+                            if (*nextIt != original->getCoords())
+                            {
+                                nextReference = _pieces.find(*nextIt);
+                                break;
+                            };
+                        };
+
+                        //if we found a non-original-piece neighbor, continue
+                        if (nextReference != nullptr)
+                        {
+                            direction = Position::findDirection(nextReference->getCoords(), nextSpace.getCoords());
+                            
+                            // spider check
+                            if (code % 5 == 4)
+                            {
+                                if (depth == 1)
+                                {
+                                    moves.push_back(Move(label, nextReference->label, direction));
+                                };
+                            }
+                            else
+                            {
+                                moves.push_back(Move(label, nextReference->label, direction));
+                            };
+                            
+                            // note that we've now seen this location
+                            seen.insert(*emptyIt);
+
+                            // continue the search
+                            _moveSearch(label, code, &nextSpace, moves, seen, depth - 1);
+                        };
+                    };
+                };
+            };
+        };
+    };
+};
+
+
+void Board::_hopperSearch(std::string label, int direction, Position *current, std::vector<Move> &moves)
+{
+    // if we're currently over a piece, continue searching
+    if (_pieces.find(current->getCoords()))
+    {
+        Position next = current->getNeighbor(direction);
+        _hopperSearch(label, direction, &next, moves);
+    }
+    // otherwise, we've found a stopping point
+    else
+    {
+        std::vector<std::vector<int>> adjacencies = _pieces.adjacencies(current);
+        Piece *ref = _pieces.find(adjacencies[0]);
+        int refDir = Position::findDirection(ref->getCoords(), current->getCoords());
+        moves.push_back(Move(label, ref->label, refDir));
+    };
+};
+
+
 std::vector<Move> Board::_genQueenMoves(std::string label)
 {
-    std::vector<Move> r;
-    return r;
+    std::vector<Move> moves;
+    std::set<std::vector<int>> seen;
+    Piece *current = _pieces.find(label);
+    _moveSearch(label, current->code, current, moves, seen, 1);
+    return moves;
 };
+
 
 std::vector<Move> Board::_genAntMoves(std::string label)
 {
-    std::vector<Move> r;
-    return r;
+    std::vector<Move> moves;
+    std::set<std::vector<int>> seen;
+    Piece *current = _pieces.find(label);
+    _moveSearch(label, current->code, current, moves, seen, -1);
+    return moves;
 };
+
 
 std::vector<Move> Board::_genBeetleMoves(std::string label)
 {
-    std::vector<Move> r;
-    return r;
+    std::vector<Move> moves;
+    std::set<std::vector<int>> seen;
+    Piece *current = _pieces.find(label);
+    _moveSearch(label, current->code, current, moves, seen, 1);
+    return moves;
 };
+
 
 std::vector<Move> Board::_genHopperMoves(std::string label)
 {
-    std::vector<Move> r;
-    return r;
+    
+    std::vector<Move> moves;
+    int direction;
+    Piece *current = _pieces.find(label);
+    std::vector<std::vector<int>> adjacencies = _pieces.adjacencies(current);
+    std::vector<std::vector<int>>::iterator adjacentIt = adjacencies.begin();
+
+    // initiate a hopper search for every direction with an adjacency
+    for (adjacentIt; adjacentIt != adjacencies.end(); adjacentIt++)
+    {
+        direction = Position::findDirection(current->getCoords(), *adjacentIt);
+        _hopperSearch(label, direction, current, moves);
+    };
+
+    return moves;
 };
+
 
 std::vector<Move> Board::_genSpiderMoves(std::string label)
 {
-    std::vector<Move> r;
-    return r;
+    std::vector<Move> moves;
+    std::set<std::vector<int>> seen;
+    Piece *current = _pieces.find(label);
+    _moveSearch(label, current->code, current, moves, seen, 3);
+    return moves;
 };
+
 
 std::vector<Move> Board::genAllMoves()
 {
@@ -333,6 +454,7 @@ std::vector<Move> Board::genAllMoves()
 
     return moves;
 };
+
 
 std::vector<std::string> _splitMoveCode(std::string moveCode) // maybe a parser util
 {
