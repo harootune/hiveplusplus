@@ -1,6 +1,8 @@
 #include "Board.h"
 #include "PieceInfo.h"
+#include "Utils.h"
 #include <iostream>
+#include <algorithm>
 
 Board::Board()
 {
@@ -19,19 +21,15 @@ Board::Board(std::map<int, int> pieceConfig)
 
 void Board::makeMove(Move move)
 {
-    // std::vector<std::string> code = _splitMoveCode(moveCode);
-    
-    // if (_validateMove(code))
-    // {
-    //     // move behavior
-    // }
-    // else
-    // {
-    //     // throw some error
-    // };
     _pieces.update(move);
     _turn++;
     _white = !_white;
+};
+
+
+void Board::makeMove(std::string moveString)
+{
+    makeMove(_stringToMove(moveString));
 };
 
 
@@ -114,6 +112,75 @@ void Board::_oneHiveSearch(std::vector<int> &parent, std::vector<int> &location,
     };
 };
 
+Move Board::_stringToMove(std::string moveString)
+{
+    // maybe regex check to start?s
+
+    std::vector<std::string> components = Utils::tokenize(moveString, ' '); // need a better whitespace check
+    
+    // a failed tokenization returns a vector containing a single empty string
+    if (components[0] == "")
+    {  
+        // throw some error - this should never occur unless makeMove is called by something without a regex check
+        std::cout << "Empty movestring detected in Board::_stringToMove" << std::endl;
+    }
+    else
+    {
+        // this is a first move
+        if (components.size() == 1)
+        {
+            return Move(components[0]);
+        }
+        // this is a normal move
+        else
+        {
+            int direction;
+            std::string destination = "";
+            bool newPiece = _pieces.find(components[0]) == nullptr;
+
+            switch (components[1][0])
+            {
+                case '\\':
+                    direction = 4;
+                    destination = components[1].substr(1, 2);
+                    break;
+                case '-':
+                    direction = 3;
+                    destination = components[1].substr(1, 2);
+                    break; 
+                case '/':
+                    direction = 2;
+                    destination = components[1].substr(1, 2);
+                    break; 
+                default:
+                    break;
+            };
+
+            if (destination == "")
+            {
+                switch (components[1][2])
+                {
+                    case '\\':
+                        direction = 1;
+                        destination = components[1].substr(0, 2);
+                        break;
+                    case '-':
+                        direction = 0;
+                        destination = components[1].substr(0, 2);
+                        break; 
+                    case '/':
+                        direction = 5;
+                        destination = components[1].substr(0, 2);
+                        break; 
+                    default:
+                        break;
+                };
+            };
+
+            return Move(components[0], destination, direction, newPiece);
+        };
+    };
+};
 
 std::vector<Move> Board::_genPlacementMoves()
 {
@@ -168,18 +235,18 @@ std::vector<Move> Board::_genPlacementMoves()
         // for every piece of a given color
         for (pieceIt = colorPieces.begin(); pieceIt != colorPieces.end(); pieceIt++)
         {
-            // if it isn't topped
+            // if it isn't topped, continue
             if (!(*pieceIt)->isTopped) // double check this
             {
                 // for every empty adjacent space
                 neighborCoords = _pieces.adjacencies(*pieceIt, true);
                 for (neighborIt = neighborCoords.begin(); neighborIt != neighborCoords.end(); neighborIt++)
                 {
-                    // if we have not checked this space before
+                    // if we have not checked this space before, continue
                     if (seen.find(*neighborIt) == seen.end())
                     {
                         seen.insert(*neighborIt);
-                        // if the adjacent space is not adjacent to any enemy pieces
+                        // if the adjacent space is not adjacent to any enemy pieces, continue
                         open = true;
                         toCheck = Position(*neighborIt);
                         adjacentCoords = _pieces.adjacencies(&toCheck);
@@ -198,11 +265,11 @@ std::vector<Move> Board::_genPlacementMoves()
                             // for every piece
                             for (configIt = _pieceConfig.begin(); configIt != _pieceConfig.end(); configIt++)
                             {
-                                // if the piece is on the current player's side
+                                // if the piece is on the current player's side, continue
                                 if ((configIt->first < PieceCodes::bQ && _white) ||
                                     (configIt->first >= PieceCodes::bQ && !_white))
                                 {
-                                    // if there are any pieces left
+                                    // if there are any pieces left, continue
                                     if (configIt->second - _pieces.counts[configIt->first] > 0)
                                     {
                                         // store a corresponding move
@@ -456,27 +523,6 @@ std::vector<Move> Board::genAllMoves()
 };
 
 
-std::vector<std::string> _splitMoveCode(std::string moveCode) // maybe a parser util
-{
-    std::vector<std::string> code;
-    std::string codeComp = "";
-    std::string::iterator codeIt;
-
-    for (codeIt = moveCode.begin(); codeIt != moveCode.end(); codeIt++)
-    {
-        if (*codeIt == ' ')
-        {
-            code.push_back(codeComp);
-            codeComp = "";
-        }
-        else
-        {
-            codeComp.push_back(*codeIt);
-        };
-    };
-
-    return code;
-};
 
 
 

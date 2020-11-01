@@ -37,8 +37,9 @@ class Board
         Board(std::map<int, int> pieceConfig);
 
         std::vector<Move> genAllMoves();
-
+  
         void makeMove(Move move);
+        void makeMove(std::string moveString); 
         void undoLast();
 
     private:
@@ -57,6 +58,7 @@ class Board
         void _oneHiveSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info);
                             
         // move generation helpers
+        Move _stringToMove(std::string moveString);
         void _moveSearch(std::string label, int code, Position *current,
                         std::vector<Move> &moves, std::set<std::vector<int>> &seen, int depth);
         void _hopperSearch(std::string label, int direction, Position *current, std::vector<Move> &moves);

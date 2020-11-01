@@ -100,7 +100,7 @@ std::vector<std::vector<int>> PieceTable::adjacencies(Position *pos, bool empty)
     return existingNeighbors;
 };
 
-void PieceTable::update(Move move, bool reversable)
+void PieceTable::update(Move move, bool reversible)
 {
     int i;
     Piece *target;
@@ -109,7 +109,7 @@ void PieceTable::update(Move move, bool reversable)
     std::vector<int> newCoords;
     std::vector<int> underCoords;
     
-    if (reversable)
+    if (reversible)
     {
         _storeUndo(move);
     };

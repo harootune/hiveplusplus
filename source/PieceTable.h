@@ -20,7 +20,7 @@ class PieceTable
         std::vector<std::vector<int>> adjacencies(std::string label, bool empty = false);
         std::vector<std::vector<int>> adjacencies(Position *pos, bool empty = false);
 
-        void update(Move move, bool reversable = true);
+        void update(Move move, bool reversible = true);
         void remove(std::string pieceLabel);
         void undoLast();
         bool empty();
