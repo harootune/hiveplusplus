@@ -25,7 +25,7 @@ std::vector<std::string> Utils::tokenize(std::string input, char delimiter)
     return result;
 };
 
-std::string strip(std::string input)
+std::string Utils::strip(std::string input)
 {
     std::string::iterator inputIt = input.begin();
     std::string output = "";
@@ -62,7 +62,7 @@ std::string strip(std::string input)
 bool Utils::isGameString(std::string input)
 {
     // could be static somewhere
-    std::regex pattern("([w,b][A,B,G,Q,W])(\s*([\\,/,-][w,b][A,B,G,Q,W]|[w,b][A,B,G,Q,W][\\,/,-]))?");
+    std::regex pattern("([wb][ABGQW]([1-9]?[0-9]?)?)(\\s*([\\\\/-][wb][ABGQW]([1-9]?[0-9]?)?)|([wb][ABGQW]([1-9]?[0-9]?)?[\\\\/-]))?");
     
     return std::regex_match(input, pattern);
 };
@@ -72,3 +72,7 @@ int Utils::labelToCode(std::string label)
   std::string prefix = label.substr(0, 2);
   return LabelCodes[prefix];  
 };
+
+
+
+// ([wb][ABGQW]([1-9]?[0-9]?)?)\\s(([\\/-][wb][ABGQW]([1-9]?[0-9]?)?)|([wb][ABGQW]([1-9]?[0-9]?)?[\\/-]))

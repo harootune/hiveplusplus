@@ -5,6 +5,7 @@
 #include "source/Board.h"
 #include "source/PieceInfo.h"
 #include "source/Interface.h"
+#include "source/Utils.h"
 #include <iostream>
 
 int main()
@@ -44,7 +45,7 @@ int main()
     // board.makeMove(moveA);
     // Move moveB("bQ", "wQ", 3, true);
     // board.makeMove(moveB);
-    // Move moveC("wA1", "wQ", 0, true);
+    // Move moveC("wA1", "wQ", 0, true); 
     // board.makeMove(moveC);
     // Move moveD("bG1", "bQ", 3, true);
     // board.makeMove(moveD);
@@ -52,6 +53,8 @@ int main()
     // board.undoLast();
     // board.undoLast();
     // board.undoLast();
+
+    bool check = Utils::isGameString("bQ1 \\wQ1");
 
     UHPInterface inter(defaultConfig);
     inter.initTerminal();

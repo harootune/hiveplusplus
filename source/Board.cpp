@@ -123,6 +123,7 @@ Move Board::_stringToMove(std::string moveString)
     {  
         // throw some error - this should never occur unless makeMove is called by something without a regex check
         std::cout << "Empty movestring detected in Board::_stringToMove" << std::endl;
+        return Move();
     }
     else
     {

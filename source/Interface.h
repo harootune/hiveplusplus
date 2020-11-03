@@ -16,8 +16,8 @@ class UHPInterface
     
     private:
         Board _game;
-        void _info(std::vector<std::string> tokens);
-        void _play(std::vector<std::string> tokens);
+        void _info(std::string input);
+        void _play(std::string input);
 };
 
 #endif
