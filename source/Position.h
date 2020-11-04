@@ -26,6 +26,7 @@ class Position
         virtual void setCoords(std::vector<int> c);
         virtual std::vector<int> getNeighbor(int direction);
         virtual std::vector<std::vector<int>> getAllNeighbors();
+        virtual int findDistance(Position *other);
 
         static std::vector<int> convertDirection(int dir);
         static int convertTranslation(const std::vector<int> &trans);
@@ -52,6 +53,7 @@ class Piece: public Position
         int code;
         std::string label;
         bool isTopped;
+        bool white;
 
         ~Piece() {};
 };

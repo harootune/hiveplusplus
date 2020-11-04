@@ -7,11 +7,14 @@
 #include <vector>
 #include <map>
 #include <stack>
+#include <set>
 
 class PieceTable
 {
     public:
         std::map<int, int> counts;
+        bool wQueen = false;
+        bool bQueen = false;
 
         Piece *find(std::string label);
         Piece *find(std::vector<int> coords);
@@ -24,8 +27,19 @@ class PieceTable
         void remove(std::string pieceLabel);
         void undoLast();
         bool empty();
+        Piece* getFirst();
         std::string nextLabel(int code);
         std::vector<Piece*> getColorPieces(bool white);
+        std::vector<Piece*> getAllPieces();
+
+        // this should get separated out into some other class
+        static int checkMateScore;
+        static int drawScore;
+        static std::vector<int> baseScores;
+        static std::vector<std::vector<int>> offScores;
+        static std::vector<std::vector<int>> defScores;
+        int score (bool white, std::set<std::vector<int>> pinned);
+
 
         ~PieceTable();
 

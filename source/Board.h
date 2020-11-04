@@ -41,6 +41,8 @@ class Board
         void makeMove(Move move);
         void makeMove(std::string moveString); 
         void undoLast();
+        
+        int score();
 
     private:
         bool _white;
@@ -53,7 +55,7 @@ class Board
 
         bool _validateMove(std::vector<std::string> move);
         
-        // one hive rule enforcement
+        // one hive rule enforcement - should this go in PieceTable?
         std::set<std::vector<int>> _oneHiveCheck(std::vector<int> start);
         void _oneHiveSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info);
                             

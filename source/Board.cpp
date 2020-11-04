@@ -40,6 +40,19 @@ void Board::undoLast()
     _white = !_white;
 };
 
+int Board::score()
+{
+    std::set<std::vector<int>> pinned {};
+
+    if (_turn != 1)
+    {
+        // this is not a good solution
+        pinned = _oneHiveCheck(_pieces.getFirst()->getCoords());
+    };
+
+    return _pieces.score(_white, pinned);
+};
+
 
 bool Board::_validateMove(std::vector<std::string> move)
 {
@@ -192,13 +205,13 @@ std::vector<Move> Board::_genPlacementMoves()
     {
         for (configIt = _pieceConfig.begin(); configIt != _pieceConfig.end(); configIt++)
         {
-            if (configIt->first < PieceCodes::bQ && configIt->second > 0)
+            if (PieceCodes::wQ < configIt->first && configIt->first < PieceCodes::bQ && configIt->second > 0) // no queen moves on first turn
             {
                 moves.push_back(Move(_pieces.nextLabel(configIt->first)));
             };
         };
     }
-    else if (_turn == 1) // this doesn't work
+    else if (_turn == 1)
     {
         std::vector<int> start {0, 0, 0 ,0};
         Piece *startPiece = _pieces.find(start);
@@ -210,7 +223,7 @@ std::vector<Move> Board::_genPlacementMoves()
 
             for (configIt = _pieceConfig.begin(); configIt != _pieceConfig.end(); configIt++)
             {
-                if (configIt->first >= PieceCodes::bQ && configIt->second > 0)
+                if (configIt->first > PieceCodes::bQ && configIt->second > 0) // same queen restriction
                 {
                     moves.push_back(Move(_pieces.nextLabel(configIt->first), startPiece->label, i, true ));
                 };
@@ -273,8 +286,13 @@ std::vector<Move> Board::_genPlacementMoves()
                                     // if there are any pieces left, continue
                                     if (configIt->second - _pieces.counts[configIt->first] > 0)
                                     {
-                                        // store a corresponding move
-                                        moves.push_back(Move(_pieces.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
+                                        //enforcing Queen at turn 4
+                                        if ((6 <= _turn <= 7 && configIt->first % 5 == 0) || // if this is a queen piece, it is the 4th turn, and we havent placed a queen piece yet
+                                            (_turn < 6 || _turn > 7)) // or if its just any other turn, continue
+                                        {
+                                            // store a corresponding move
+                                            moves.push_back(Move(_pieces.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
+                                        };
                                     };
                                 };
                             };
@@ -479,43 +497,46 @@ std::vector<Move> Board::genAllMoves()
     genResults = _genPlacementMoves();
     moves.insert(moves.end(), genResults.begin(), genResults.end());
 
-    genTargets = _pieces.getColorPieces(_white);
-
-    if (!genTargets.empty())
+    if ((_white && _pieces.wQueen) || // if white + wQ on board
+        (!_white && _pieces.bQueen)) // or black + bQ on board, add piece movement
     {
-        Piece *current;
-        targetIt = genTargets.begin();
-        std::set<std::vector<int>> pinned = _oneHiveCheck((*targetIt)->getCoords());
+        genTargets = _pieces.getColorPieces(_white);
 
-        for (targetIt; targetIt != genTargets.end(); targetIt++)
+        if (!genTargets.empty())
         {
-            current = *targetIt;
+            Piece *current;
+            targetIt = genTargets.begin();
+            std::set<std::vector<int>> pinned = _oneHiveCheck((*targetIt)->getCoords());
 
-            // universal checks
-            if (pinned.find(current->getCoords()) == pinned.end())
+            for (targetIt; targetIt != genTargets.end(); targetIt++)
             {
-                switch (current->code % 5)
+                current = *targetIt;
+                // universal checks
+                if (pinned.find(current->getCoords()) == pinned.end())
                 {
-                    case 0:
-                        genResults = _genQueenMoves(current->label);
-                        break;
-                    case 1:
-                        genResults = _genAntMoves(current->label);
-                        break;
-                    case 2:
-                        genResults = _genBeetleMoves(current->label);
-                        break;
-                    case 3:
-                        genResults = _genHopperMoves(current->label);
-                        break;
-                    case 4:
-                        genResults = _genSpiderMoves(current->label);
-                        break;
-                    default:
-                        // throw some error
-                        std::cout << "Invalid code detected in genAllMoves." << std::endl;
+                    switch (current->code % 5)
+                    {
+                        case 0:
+                            genResults = _genQueenMoves(current->label);
+                            break;
+                        case 1:
+                            genResults = _genAntMoves(current->label);
+                            break;
+                        case 2:
+                            genResults = _genBeetleMoves(current->label);
+                            break;
+                        case 3:
+                            genResults = _genHopperMoves(current->label);
+                            break;
+                        case 4:
+                            genResults = _genSpiderMoves(current->label);
+                            break;
+                        default:
+                            // throw some error
+                            std::cout << "Invalid code detected in genAllMoves." << std::endl;
+                    };
+                    moves.insert(moves.end(), genResults.begin(), genResults.end());
                 };
-                moves.insert(moves.end(), genResults.begin(), genResults.end());
             };
         };
     };

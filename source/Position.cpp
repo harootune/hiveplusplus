@@ -1,4 +1,6 @@
 #include "Position.h"
+#include "PieceInfo.h"
+#include <algorithm>
 
 const std::vector<std::vector<int>> Position::_dirToTranslations
 {
@@ -87,6 +89,26 @@ int Position::findDirection(const std::vector<int> &from, const std::vector<int>
     );
 };
 
+int Position::findDistance(Position *other)
+{
+    int check;
+    int distance = 0;
+    std::vector<int> otherCoords = other->getCoords();
+    std::vector<int> distanceDiff {
+        otherCoords[0] - _coords[0],
+        otherCoords[1] - _coords[1],
+        otherCoords[2] - _coords[2],
+    };
+
+    for (int dim: distanceDiff)
+    {
+        check = std::abs(dim);
+        distance = std::max(distance, check);
+    };
+
+    return distance;
+};
+
 Piece::Piece()
 {
     code = -1;
@@ -107,6 +129,7 @@ Piece::Piece(std::vector<int> coords, int c, std::string l)
 {
     code = c;
     label = l;
+    white = code < PieceCodes::bQ;
     isTopped = false;
     _coords = coords;
 };

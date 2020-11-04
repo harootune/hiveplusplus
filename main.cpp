@@ -38,26 +38,49 @@ int main()
         {PieceCodes::bS, 2}
     };
 
-    // Board board(defaultConfig);
+    Board board(defaultConfig);
 
-    // //testing movement
-    // Move moveA("wQ");
-    // board.makeMove(moveA);
-    // Move moveB("bQ", "wQ", 3, true);
-    // board.makeMove(moveB);
-    // Move moveC("wA1", "wQ", 0, true); 
-    // board.makeMove(moveC);
-    // Move moveD("bG1", "bQ", 3, true);
-    // board.makeMove(moveD);
-    // std::vector<Move> moves = board.genAllMoves();
-    // board.undoLast();
-    // board.undoLast();
-    // board.undoLast();
+    //testing movement
+    
+    std::vector<Move> moves = board.genAllMoves();
+    Move moveA("wA1");
+    board.makeMove(moveA);
+    moves = board.genAllMoves();
+    Move moveB("bS1", "wA1", 3, true);
+    board.makeMove(moveB);
+    moves = board.genAllMoves();
+    Move moveC("wG1", "wA1", 0, true); 
+    board.makeMove(moveC);
+    moves = board.genAllMoves();
+    Move moveD("bB1", "bS1", 3, true);
+    board.makeMove(moveD);
+    moves = board.genAllMoves();
+    Move moveE("wB1", "wA1", 1, true); 
+    board.makeMove(moveE);
+    moves = board.genAllMoves();
+    Move moveF("bS2", "bS1", 4, true);
+    board.makeMove(moveF);
+    moves = board.genAllMoves();
+    Move moveG("wQ", "wG1", 4, true);
+    board.makeMove(moveG);
+    moves = board.genAllMoves();
+    Move moveH("bQ", "bB1", 2, true);
+    board.makeMove(moveH);
+    moves = board.genAllMoves();
+    Move moveI("wQ", "wG1", 5, true);
+    board.makeMove(moveI);
+    moves = board.genAllMoves();
+
+    int score = board.score();
+    
+    board.undoLast();
+    board.undoLast();
+    board.undoLast();
 
     bool check = Utils::isGameString("bQ1 \\wQ1");
 
     UHPInterface inter(defaultConfig);
-    inter.initTerminal();
+    // inter.initTerminal();
 
     std::cout << "Done" << std::endl;
 };

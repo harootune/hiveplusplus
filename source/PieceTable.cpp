@@ -173,6 +173,16 @@ void PieceTable::update(Move move, bool reversible)
         };
 
         counts[move.code]++;
+
+        // queen update
+        if (move.code == PieceCodes::wQ)
+        {
+            wQueen = true;
+        }
+        else if (move.code == PieceCodes::bQ)
+        {
+            bQueen = true;
+        };
     };
 };
 
@@ -193,6 +203,16 @@ void PieceTable::remove(std::string pieceLabel)
     _coordsToPiece[outer].erase(coords[3]);
     _labelToPiece.erase(pieceLabel);
     counts[target->code]--;
+
+    if (pieceLabel == "wQ")
+    {
+        wQueen = false;
+    }
+    else if (pieceLabel == "bQ")
+    {
+        bQueen = false;
+    };
+
     delete target;
 };
 
@@ -233,10 +253,26 @@ bool PieceTable::empty()
     };
 };
 
+Piece *PieceTable::getFirst()
+{
+    if (empty())
+    {
+        return nullptr;
+    }
+    else
+    {
+        Piece *target = _labelToPiece.begin()->second;
+        return target;
+    };
+};
+
 std::string PieceTable::nextLabel(int code)
 {
     std::string label = PieceNames[code];
-    label += std::to_string(counts[code] + 1);
+    if (code % 5 != 0)
+    {
+        label += std::to_string(counts[code] + 1);
+    }
     return label;
 };
 
@@ -280,6 +316,199 @@ std::vector<Piece*> PieceTable::getColorPieces(bool white)
     };
 
     return targets;
+};
+
+std::vector<Piece*> PieceTable::getAllPieces()
+{
+    std::map<std::string, Piece*>::iterator labelIt;
+    std::vector<Piece*> targets;
+
+    for (labelIt = _labelToPiece.begin(); labelIt != _labelToPiece.end(); labelIt++)
+    {
+
+        targets.push_back(labelIt->second);
+
+    };
+
+    return targets;   
+};
+
+// board scoring
+
+int PieceTable::checkMateScore = 100000;
+
+int PieceTable::drawScore = 1;
+
+std::vector<int> PieceTable::baseScores
+{
+    10,
+    10,
+    10,
+    10,
+    10
+};
+
+std::vector<std::vector<int>> PieceTable::offScores
+{
+    {0, -100, -40, 0, 0},
+    {0, 100, 80, 50, 10},
+    {80, 60, 40, 20, 10},
+    {0, 60, 40, 20, 10},
+    {0, 60, 40, 20, 10}
+};
+
+std::vector<std::vector<int>> PieceTable::defScores
+{
+    {0, 0, 0, 0},
+    {0, 50, 20, 10},
+    {180, 200, 50, 10},
+    {0, 160, 0, 0},
+    {0, 50, 20, 10}
+};
+
+int PieceTable::score(bool white, std::set<std::vector<int>> pinned)
+{
+    int score = 0;
+    int sign = white ? 1 : -1;
+    bool wCapture = false;
+    bool bCapture = false;
+
+    if (wQueen)
+    {
+        std::vector<std::vector<int>> adj = adjacencies("wQ");
+        if (adj.size() == 6)
+        {
+            wCapture = true;
+        }
+        else
+        {
+            // for every adjacent coordinate with a piece
+            for (std::vector<int> el: adj) 
+            {
+                // if that piece is white, do this
+                if (find(el)->code < PieceCodes::bQ)
+                {
+                    // if the piece is white, +/- by 50
+                    score -= 50;
+                }
+                // otherwise
+                else
+                {
+                    // if the piece is black, +/- by 100 
+                    score -= 100;
+                };
+            };
+        };
+    };
+
+    if (bQueen)
+    {
+        std::vector<std::vector<int>> adj = adjacencies("bQ");
+        if (adj.size() == 6)
+        {
+            bCapture = true;
+        }
+        else
+        {
+            // for every adjacent coordinate with a piece
+            for (std::vector<int> el: adj) 
+            {
+                // if that piece is white, do this
+                if (find(el)->code < PieceCodes::bQ)
+                {
+                    // if the piece is white, +/- by 100
+                    score += 100;
+                }
+                // otherwise
+                else
+                {
+                    // if the piece is black, +/- by 50
+                    score += 50;
+                };
+            };
+        };
+    };
+
+    if (bCapture && wCapture)
+    {
+        return PieceTable::drawScore;
+    }
+    else if (bCapture)
+    {
+        return sign * PieceTable::checkMateScore;
+    }
+    else if (wCapture)
+    {
+        return sign * -PieceTable::checkMateScore;
+    };
+
+    // no captures or draws
+    int tempScore;
+    int distance;
+    std::vector<Piece*> pieces = getAllPieces();
+    
+    for (Piece* p: pieces)
+    {
+        tempScore = 0;
+
+        // if the piece is the same color as our current player, do this
+        if (p->white)
+        {
+            // add base score
+            tempScore += baseScores[p->code % 5];
+
+            // offensive scores
+            if (bQueen)
+            {
+                distance = p->findDistance(find("bQ"));
+                if (distance < 5)
+                {
+                    tempScore += offScores[p->code % 5][distance];
+                };
+            };
+
+            // defensive scores
+            if (wQueen)
+            {
+                distance = p->findDistance(find("wQ"));
+                if (distance < 4)
+                {
+                    tempScore += defScores[p->code % 5][distance];
+                };
+            };
+        }
+        else
+        {
+            tempScore -= baseScores[p->code % 5];
+
+            if (wQueen)
+            {
+                distance = p->findDistance(find("wQ"));
+                if (distance < 5)
+                {
+                    tempScore -= offScores[p->code % 5][distance];
+                };
+            };
+
+            if (bQueen)
+            {
+                distance = p->findDistance(find("bQ"));
+                if (distance < 4)
+                {
+                    tempScore -= defScores[p->code % 5][distance];
+                };
+            };
+        };
+
+        if (pinned.find(p->getCoords()) != pinned.end())
+        {
+            tempScore /= 2; // halve scores for pinned pieces
+        };
+
+        score += tempScore;
+    };
+
+    return sign * score;
 };
 
 PieceTable::~PieceTable()
