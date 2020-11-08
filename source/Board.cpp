@@ -6,24 +6,35 @@
 
 Board::Board()
 {
-    _turn = 0;
-    _white = true;   
+    turn = 0;
+    white = true;
+    _pieces = PieceTable(this);   
 };
 
 
 Board::Board(std::map<int, int> pieceConfig)
 {
-    _turn = 0;
-    _white = true;   
+    turn = 0;
+    white = true;   
     _pieceConfig = pieceConfig;
+    _pieces = PieceTable(this);
 };
 
 
 void Board::makeMove(Move move)
 {
+    // debug
+    std::cout << turn << " " << toString() << std::endl;
+    std::cout << "COORDS MAP BEFORE MOVE " << _pieces.coordsMapToString() << std::endl;
+
     _pieces.update(move);
-    _turn++;
-    _white = !_white;
+    gamestate = _pieces.checkGameState();
+    turn++;
+    white = !white;
+
+    // debug
+    std::cout << turn << " " << move.toString() << std::endl;
+    std::cout << "COORDS MAP AFTER MOVE " << _pieces.coordsMapToString() << std::endl;
 };
 
 
@@ -35,94 +46,34 @@ void Board::makeMove(std::string moveString)
 
 void Board::undoLast()
 {
+    // debug
+    std::cout << turn << " UNDO " << toString() << std::endl;
+    std::cout << "COORDS MAP BEFORE UNDO " << _pieces.coordsMapToString() << std::endl;
+    
     _pieces.undoLast();
-    _turn--;
-    _white = !_white;
+    gamestate = _pieces.checkGameState();
+    turn--;
+    white = !white;
+
+    std::cout << "COORDS MAP AFTER UNDO " << _pieces.coordsMapToString() << std::endl;
+
+    if (_pieces._undoCache.size() != turn)
+    {
+        std::cout << "FAILURE AFTER UNDO" << std::endl;;
+    };
+
 };
+
 
 int Board::score()
 {
-    std::set<std::vector<int>> pinned {};
-
-    if (_turn != 1)
-    {
-        // this is not a good solution
-        pinned = _oneHiveCheck(_pieces.getFirst()->getCoords());
-    };
-
-    return _pieces.score(_white, pinned);
+    return _pieces.score();
 };
 
 
 bool Board::_validateMove(std::vector<std::string> move)
 {
     return true;
-};
-
-
-std::set<std::vector<int>> Board::_oneHiveCheck(std::vector<int> start)
-// returns a set of articulation vertices for the current board.
-{
-    _OneHiveInfo info;
-    std::vector<int> rootParent {-1, -1, -1, -1};
-
-    // this will break if there are no pieces on the board
-    _oneHiveSearch(rootParent, start, &info);
-
-    return info.articulations;
-};
-
-
-void Board::_oneHiveSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info)
-// This is an implementation of a linear-time articulation vertext discovery algorithm described here:
-// https://cp-algorithms.com/graph/cutpoints.html
-{
-    
-    // increment our timer and update our contextual information about this node
-    Position current(location);
-    int children = 0; // child count of current node
-    info->time++;
-    info->visited[location] = true;
-    info->entryTime[location] = info->time;
-    info->earliestTime[location] = info->time;
-    std::vector<int> rootParent {-1, -1, -1, -1};
-
-    // iterate through every adjacency
-    std::vector<std::vector<int>> adjacencies = _pieces.adjacencies(&current);
-    std::vector<std::vector<int>>::iterator adjacentIt = adjacencies.begin();
-
-    for (adjacentIt = adjacencies.begin(); adjacentIt != adjacencies.end(); adjacentIt++)
-    {
-        if (*adjacentIt != parent) // ignore the edge back to the parent
-        {
-            if (info->visited[*adjacentIt]) // this is a back edge
-            {
-                // earliest we can get back to is the entry time of the back node
-                info->earliestTime[location] = std::min(info->earliestTime[location], info->entryTime[*adjacentIt]);
-            }
-            else // this is a tree edge
-            {  
-                // recur the dfs
-                _oneHiveSearch(location, *adjacentIt, info);
-
-                // earliest we can get back to is the earliest node the child can get to
-                info->earliestTime[location] = std::min(info->earliestTime[location], info->earliestTime[*adjacentIt]);
-
-                // if we can go no further back then the current node, this is an articulation vertex
-                if (info->earliestTime[*adjacentIt] >= info->entryTime[location] && parent != rootParent)
-                {
-                    info->articulations.insert(location);
-                }
-                children++;
-            };
-        };
-    };
-
-    
-    if (parent == rootParent && children > 1)
-    {
-        info->articulations.insert(location);
-    };
 };
 
 Move Board::_stringToMove(std::string moveString)
@@ -201,7 +152,7 @@ std::vector<Move> Board::_genPlacementMoves()
     std::map<int, int>::iterator configIt;
     std::vector<Move> moves;
 
-    if (_turn == 0)
+    if (turn == 0)
     {
         for (configIt = _pieceConfig.begin(); configIt != _pieceConfig.end(); configIt++)
         {
@@ -211,7 +162,7 @@ std::vector<Move> Board::_genPlacementMoves()
             };
         };
     }
-    else if (_turn == 1)
+    else if (turn == 1)
     {
         std::vector<int> start {0, 0, 0 ,0};
         Piece *startPiece = _pieces.find(start);
@@ -225,7 +176,7 @@ std::vector<Move> Board::_genPlacementMoves()
             {
                 if (configIt->first > PieceCodes::bQ && configIt->second > 0) // same queen restriction
                 {
-                    moves.push_back(Move(_pieces.nextLabel(configIt->first), startPiece->label, i, true ));
+                    moves.push_back(Move(_pieces.nextLabel(configIt->first), startPiece->label, i, true));
                 };
             };
         };
@@ -242,9 +193,9 @@ std::vector<Move> Board::_genPlacementMoves()
         std::vector<std::vector<int>>::iterator neighborIt;
         std::map<int, int>::iterator configIt;
 
-        char key = _white ? 'w' : 'b';
+        char key = white ? 'w' : 'b';
         std::vector<Piece*>::iterator pieceIt;
-        std::vector<Piece*> colorPieces = _pieces.getColorPieces(_white);
+        std::vector<Piece*> colorPieces = _pieces.getColorPieces();
 
         // for every piece of a given color
         for (pieceIt = colorPieces.begin(); pieceIt != colorPieces.end(); pieceIt++)
@@ -280,15 +231,17 @@ std::vector<Move> Board::_genPlacementMoves()
                             for (configIt = _pieceConfig.begin(); configIt != _pieceConfig.end(); configIt++)
                             {
                                 // if the piece is on the current player's side, continue
-                                if ((configIt->first < PieceCodes::bQ && _white) ||
-                                    (configIt->first >= PieceCodes::bQ && !_white))
+                                if ((configIt->first < PieceCodes::bQ && white) ||
+                                    (configIt->first >= PieceCodes::bQ && !white))
                                 {
                                     // if there are any pieces left, continue
+                                    int check = configIt->second - _pieces.counts[configIt->first];
                                     if (configIt->second - _pieces.counts[configIt->first] > 0)
                                     {
                                         //enforcing Queen at turn 4
-                                        if ((6 <= _turn <= 7 && configIt->first % 5 == 0) || // if this is a queen piece, it is the 4th turn, and we havent placed a queen piece yet
-                                            (_turn < 6 || _turn > 7)) // or if its just any other turn, continue
+                                        if ((turn == 6 && configIt->first == 0) ||
+                                            (turn == 7 && configIt->first == 5) ||
+                                            turn < 6 || turn < 7)
                                         {
                                             // store a corresponding move
                                             moves.push_back(Move(_pieces.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
@@ -458,7 +411,6 @@ std::vector<Move> Board::_genBeetleMoves(std::string label)
 
 std::vector<Move> Board::_genHopperMoves(std::string label)
 {
-    
     std::vector<Move> moves;
     int direction;
     Piece *current = _pieces.find(label);
@@ -497,16 +449,16 @@ std::vector<Move> Board::genAllMoves()
     genResults = _genPlacementMoves();
     moves.insert(moves.end(), genResults.begin(), genResults.end());
 
-    if ((_white && _pieces.wQueen) || // if white + wQ on board
-        (!_white && _pieces.bQueen)) // or black + bQ on board, add piece movement
+    if ((white && _pieces.wQueen) || // if white + wQ on board
+        (!white && _pieces.bQueen)) // or black + bQ on board, add piece movement
     {
-        genTargets = _pieces.getColorPieces(_white);
+        genTargets = _pieces.getColorPieces();
 
         if (!genTargets.empty())
         {
             Piece *current;
             targetIt = genTargets.begin();
-            std::set<std::vector<int>> pinned = _oneHiveCheck((*targetIt)->getCoords());
+            std::set<std::vector<int>> pinned = _pieces.getPinned();
 
             for (targetIt; targetIt != genTargets.end(); targetIt++)
             {
@@ -544,9 +496,112 @@ std::vector<Move> Board::genAllMoves()
     return moves;
 };
 
+Move Board::recommendMove()
+{
+    Move bestMove;
+    int alpha = -1000000;
+    int beta = 1000000;
+
+    for (int i = 1; i <= 3; i++)
+    {
+        bestMove = _negaMax(alpha, beta, i);
+    };
+
+    return bestMove;
+};
+
+Move Board::_negaMax(int alpha, int beta, int depth)
+{
+    Move best;
+    int val;
+    int bestVal = -1000000;
+    std::vector<Move> moves = genAllMoves();
+
+    if (_pieces._undoCache.size() != turn)
+    {
+        std::cout << "FAILURE BEFORE INIT" << std::endl;
+    };
+
+    for (Move m: moves)
+    {
+        makeMove(m);
+
+        val = -_negaMaxSearch(-beta, -alpha, depth-1, depth);
+        if (val > bestVal)
+        {
+            best = m;
+            bestVal = val;
+        };
+
+        undoLast();
+    };
+
+    if (_pieces._undoCache.size() != turn)
+    {
+        std::cout << "FAILURE AFTER INIT" << std::endl;
+    };
+
+    return best;
+};
+
+int Board::_negaMaxSearch(int alpha, int beta, int depth, int i)
+{
+    if (_pieces._undoCache.size() != turn)
+    {
+        std::cout << "FAILURE BEFORE SEARCH" << std::endl;
+    };
+
+    if (gamestate > GameStates::InProgress || depth == 0)
+    {
+        return score();    
+    };
+
+    int newAlpha = alpha;
+    int val = -1000000;
+    std::vector<Move> moves = genAllMoves();
+
+    for (Move m: moves)
+    {
+        makeMove(m);
+
+        val = std::max(val, -_negaMaxSearch(-beta, -newAlpha, depth-1, i));
+        newAlpha = std::max(newAlpha, val);
+        
+        undoLast();
+
+        if (newAlpha >= beta)
+        {
+          // failing high - we will want to do more with this
+          break;  
+        };
+    };
+
+    if (_pieces._undoCache.size() != turn)
+    {
+        std::cout << "FAILURE AFTER SEARCH" << std::endl;
+    };
+
+    return val;
+
+};
 
 
+std::string Board::toString()
+{
+    std::string repr = "";
 
+    std::vector<Piece*> pcs = _pieces.getAllPieces();
+    for (Piece *p: pcs)
+    {
+        repr += " " + p->label + " " + 
+                std::to_string(p->getCoords()[0]) + "," +
+                std::to_string(p->getCoords()[1]) + "," +
+                std::to_string(p->getCoords()[2]) + "," +
+                std::to_string(p->getCoords()[3]) + ":";
+    };
+
+    return repr;
+};
 
 
 

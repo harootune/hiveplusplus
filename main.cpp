@@ -39,43 +39,67 @@ int main()
     };
 
     Board board(defaultConfig);
+    std::vector<Move> moves;
 
     //testing movement
     
-    std::vector<Move> moves = board.genAllMoves();
+    // Move moveA("wA1");
+    // Move moveB("bB1", "wA1", 1, true);
+    // Move moveC("wQ", "wA1", 3, true);
+    // Move moveD("bQ", "bB1", 0, true);
+
     Move moveA("wA1");
+    Move moveB("bB1", "wA1", 1, true);
+    Move moveC("wB1", "wA1", 3, true);
+    Move moveD("bQ", "bB1", 0, true);
+    Move moveE("wQ", "wA1", 4, true);
+    Move moveF("bA1", "bB1", 1, true);
+    Move moveG("wB1", "bB1", 4);
+
     board.makeMove(moveA);
-    moves = board.genAllMoves();
-    Move moveB("bS1", "wA1", 3, true);
     board.makeMove(moveB);
-    moves = board.genAllMoves();
-    Move moveC("wG1", "wA1", 0, true); 
     board.makeMove(moveC);
-    moves = board.genAllMoves();
-    Move moveD("bB1", "bS1", 3, true);
     board.makeMove(moveD);
-    moves = board.genAllMoves();
-    Move moveE("wB1", "wA1", 1, true); 
     board.makeMove(moveE);
-    moves = board.genAllMoves();
-    Move moveF("bS2", "bS1", 4, true);
     board.makeMove(moveF);
-    moves = board.genAllMoves();
-    Move moveG("wQ", "wG1", 4, true);
     board.makeMove(moveG);
-    moves = board.genAllMoves();
-    Move moveH("bQ", "bB1", 2, true);
-    board.makeMove(moveH);
-    moves = board.genAllMoves();
-    Move moveI("wQ", "wG1", 5, true);
-    board.makeMove(moveI);
+
+    board.undoLast();
+
+
+    Move recc = board.recommendMove();
+
     moves = board.genAllMoves();
 
-    int score = board.score();
     
+
     board.undoLast();
     board.undoLast();
-    board.undoLast();
+    // board.undoLast();
+
+    // board.undoLast();
+    // board.makeMove(moveA);
+
+    
+
+    // Move moveB("bS1", "wA1", 3, true);
+    // board.makeMove(moveB);
+    // board.undoLast();
+    // board.undoLast();
+    // board.makeMove(moveA);
+    // board.makeMove(moveB);
+
+    // Move moveC("wG1", "wA1", 0, true);
+    // board.makeMove(moveC);
+    // board.undoLast();
+    // board.undoLast();
+    // board.undoLast();
+    // board.makeMove(moveA);
+    // board.makeMove(moveB);
+    // board.makeMove(moveC);
+
+    // recc = board.recommendMove();
+
 
     bool check = Utils::isGameString("bQ1 \\wQ1");
 

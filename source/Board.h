@@ -14,23 +14,18 @@
 
 enum GameStates
 {
-    Play,
-    Win,
-    Draw
-};
-
-struct _OneHiveInfo
-{
-    int time = 0;
-    std::set<std::vector<int>> articulations;
-    std::map<std::vector<int>, int> entryTime;
-    std::map<std::vector<int>, int> earliestTime;
-    std::map<std::vector<int>, bool> visited;
+    NotStarted,
+    InProgress,
+    Draw,
+    BCapture,
+    WCapture
 };
 
 class Board
 {
     public:
+        int turn;
+        bool white;
         int gamestate;
 
         Board();
@@ -41,12 +36,13 @@ class Board
         void makeMove(Move move);
         void makeMove(std::string moveString); 
         void undoLast();
+        Move recommendMove();
+
+        std::string toString();
         
         int score();
 
     private:
-        bool _white;
-        int _turn;
         std::map<int, int> _pieceConfig;
         // std::vector<std::string> _moveCache;
 
@@ -54,10 +50,6 @@ class Board
         PieceTable _pieces;
 
         bool _validateMove(std::vector<std::string> move);
-        
-        // one hive rule enforcement - should this go in PieceTable?
-        std::set<std::vector<int>> _oneHiveCheck(std::vector<int> start);
-        void _oneHiveSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info);
                             
         // move generation helpers
         Move _stringToMove(std::string moveString);
@@ -70,6 +62,10 @@ class Board
         std::vector<Move> _genBeetleMoves(std::string label);
         std::vector<Move> _genHopperMoves(std::string label);
         std::vector<Move> _genSpiderMoves(std::string label);
+
+        // negamax search
+        Move _negaMax(int alpha, int beta, int depth);
+        int _negaMaxSearch(int alpha, int beta, int depth, int i);
 };
 
 #endif

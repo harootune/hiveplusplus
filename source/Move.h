@@ -17,6 +17,8 @@ class Move
         Move() {};
         Move(std::string moveLabel);
         Move(std::string moveLabel, std::string destLabel, int dir, bool isNew = false);
+
+        std::string toString();
 };
 
 #endif
