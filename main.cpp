@@ -49,32 +49,39 @@ int main()
     // Move moveD("bQ", "bB1", 0, true);
 
     Move moveA("wA1");
-    Move moveB("bB1", "wA1", 1, true);
-    Move moveC("wB1", "wA1", 3, true);
-    Move moveD("bQ", "bB1", 0, true);
-    Move moveE("wQ", "wA1", 4, true);
-    Move moveF("bA1", "bB1", 1, true);
-    Move moveG("wB1", "bB1", 4);
+    Move moveB("bG1", "wA1", 5, true);
+    Move moveC("wQ", "wA1", 3, true);
+    Move moveD("bB1", "wQ", 0);
+    // Move moveC("wB1", "wA1", 3, true);
+    // Move moveD("bQ", "bB1", 0, true);
+    // Move moveE("wQ", "wA1", 4, true);
+    // Move moveF("bA1", "bB1", 1, true);
+    // Move moveG("wB1", "bB1", 4);
 
     board.makeMove(moveA);
     board.makeMove(moveB);
-    board.makeMove(moveC);
-    board.makeMove(moveD);
-    board.makeMove(moveE);
-    board.makeMove(moveF);
-    board.makeMove(moveG);
-
-    board.undoLast();
-
-
     Move recc = board.recommendMove();
 
-    moves = board.genAllMoves();
+
+    // board.makeMove(moveB);
+    // board.makeMove(moveC);
+    // board.makeMove(moveD);
+
+    // board.makeMove(moveE);
+    // board.makeMove(moveF);
+    // board.makeMove(moveG);
+
+    // board.undoLast();
+
+
+    // Move recc = board.recommendMove();
+
+    // moves = board.genAllMoves();
 
     
 
-    board.undoLast();
-    board.undoLast();
+    // board.undoLast();
+    // board.undoLast();
     // board.undoLast();
 
     // board.undoLast();

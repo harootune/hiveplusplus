@@ -47,7 +47,7 @@ std::vector<int> PieceTable::top(std::vector<int> coords)
             {
                 if (topPiece->second != nullptr)
                 {
-                    outerCoords.push_back(topPiece->first+1);
+                    outerCoords.push_back(topPiece->first);
                     return outerCoords;
                 };
             };
@@ -137,6 +137,10 @@ void PieceTable::update(Move move, bool reversible)
         target = find(move.from);
         oldCoords = target->getCoords();
         newCoords= top(find(move.to)->getNeighbor(move.direction));
+        if (find(newCoords) != nullptr)
+        {
+            newCoords[3]++;
+        };
         target->setCoords(newCoords);
 
         // adding new coordinate mapping

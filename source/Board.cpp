@@ -502,7 +502,7 @@ Move Board::recommendMove()
     int alpha = -1000000;
     int beta = 1000000;
 
-    for (int i = 1; i <= 3; i++)
+    for (int i = 1; i <= 5; i++)
     {
         bestMove = _negaMax(alpha, beta, i);
     };
