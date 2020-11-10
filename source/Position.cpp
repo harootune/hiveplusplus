@@ -47,11 +47,12 @@ std::vector<int> Position::getNeighbor(int direction)
     std::vector<int> neighbor = _coords;
     std::vector<int> translation = convertDirection(direction);
 
+    // Apply translation found by convertDirection
     for (int i = 0; i < 3; i++)
     {
         neighbor[i] += translation[i];
     };
-    neighbor[3] = 0; // this ensures that we always explore the lowest level of the board
+    neighbor[3] = 0; // Ensures that we always look at the lowest level of the board -- maybe unnecessary?
 
     return neighbor;
 };
@@ -90,6 +91,8 @@ int Position::findDirection(const std::vector<int> &from, const std::vector<int>
 };
 
 int Position::findDistance(Position *other)
+// The distance in # of hex pieces (min translations from one Position to another)
+// can be found by taking the maximum absolute value among the x, y, and z coordinates
 {
     int check;
     int distance = 0;

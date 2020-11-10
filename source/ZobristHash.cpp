@@ -1,15 +1,9 @@
 #include "ZobristHash.h"
 #include "PieceInfo.h"
+#include "Utils.h"
 #include <iostream>
 #include <queue>
 
-std::vector<int> concatCoords(std::vector<int> coords, int piece)
-{
-    std::vector<int> tempCoords = coords;
-    tempCoords.push_back(piece);
-    
-    return tempCoords;
-};
 
 QPair::QPair()
 {
@@ -26,14 +20,14 @@ QPair::QPair(int d, std::vector<int> c)
 void ZobristTable::insert(std::vector<int> coords, int piece, unsigned long int hash)
 {
     // std::cout << coords[0] << ", " << coords[1] << ", " << coords[2] << ", " << coords[3] << std::endl; // debug
-    std::vector<int> tempCoords = concatCoords(coords, piece);
+    std::vector<int> tempCoords = Utils::concatCoords(coords, piece);
     _map.insert({tempCoords, hash});
 };
 
 unsigned long int ZobristTable::find(std::vector<int> coords, int piece)
 {
 
-    std::vector<int> tempCoords = concatCoords(coords, piece);
+    std::vector<int> tempCoords = Utils::concatCoords(coords, piece);
     std::map<std::vector<int>, unsigned long int>::iterator it = _map.find(tempCoords);
 
     if (it == _map.end())
@@ -48,45 +42,10 @@ unsigned long int ZobristTable::find(std::vector<int> coords, int piece)
 
 bool ZobristTable::check(std::vector<int> coords, int piece)
 {
-    std::vector<int> tempCoords = concatCoords(coords, piece);
+    std::vector<int> tempCoords = Utils::concatCoords(coords, piece);
     std::map<std::vector<int>, unsigned long int>::iterator it = _map.find(tempCoords);
 
     return it != _map.end();
-}
-
-std::map<int, int> ZobristHash::_defaultConfig
-{
-    {PieceCodes::wQ, 1},
-    {PieceCodes::wA, 3},
-    {PieceCodes::wB, 2},
-    {PieceCodes::wG, 3},
-    {PieceCodes::wS, 2},
-    {PieceCodes::bQ, 1},
-    {PieceCodes::bA, 3},
-    {PieceCodes::bB, 2},
-    {PieceCodes::bG, 3},
-    {PieceCodes::bS, 2}
-};
-
-ZobristHash::ZobristHash()
-{
-    _next = 0;
-    _numPieces = 22;
-    
-    _initTable(_defaultConfig);
-};
-
-ZobristHash::ZobristHash(int numPieces)
-{
-    std::map<int,int> tempConfig
-    {
-        {PieceCodes::wQ, numPieces}
-    };
-
-    _next = 0;
-    _numPieces = numPieces;
-    
-    _initTable(tempConfig);
 };
 
 ZobristHash::ZobristHash(std::map<int, int> pieceConfig)
@@ -119,14 +78,17 @@ void ZobristHash::_initTable(std::map<int, int> pieceConfig)
     std::queue<QPair> depthQ; 
     depthQ.push(current);
 
+    // While there are nodes in the queue
     while (!depthQ.empty())
     {
         current = depthQ.front();
 
+        // for each piece in the piececonfig
         for (piece = pieceConfig.begin(); piece != pieceConfig.end(); piece++)
         {
             _bitTable.insert(current.coords, piece->first, _getNextRand());
 
+            // if the piece is a beetle, we need to generate vertical coordinates up to the number of beetles
             if (piece->first == PieceCodes::wB || piece->first == PieceCodes::bB)
             {
                 neighborVert = current.coords;
@@ -138,17 +100,19 @@ void ZobristHash::_initTable(std::map<int, int> pieceConfig)
                     _bitTable.insert(neighborVert, piece->first, _getNextRand());
                 };
             };
-        };
+        }; 
 
-        if (current.depth < (_numPieces / 2) - 1)  // determines bounds before we have to re-center - adjust as needed
+        // if current depth of the search is less than the depth limit of the search, continue the search across all neighbors
+        // This is where we can replace depth with a distance check using max absolute value 
+        if (current.depth < (_numPieces / 2) - 1)  
         {
             neighborGen = Position(current.coords);
             neighbors = neighborGen.getAllNeighbors();
-            for (neighborIt = neighbors.begin(); neighborIt != neighbors.end(); neighborIt++)
+            for (std::vector<int> neighbor: neighbors)
             {
-                if (!_bitTable.check(*neighborIt, firstPiece))
+                if (!_bitTable.check(neighbor, firstPiece))
                 {
-                    depthQ.push(QPair(current.depth + 1, *neighborIt));
+                    depthQ.push(QPair(current.depth + 1, neighbor));
                 };
             };
         };

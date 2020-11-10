@@ -6,7 +6,11 @@
 #include <map>
 #include <string>
 
+/* This header defines several useful global data structures for use in translating
+between piece names and piece codes */
+
 enum PieceCodes
+// Integral codes for each piece type and color (piece codes)
 {
     wQ,
     wA,
@@ -20,7 +24,9 @@ enum PieceCodes
     bS
 };
 
+// Piece codes -> piece names
 extern std::vector<std::string> PieceNames;
+// Piece names -> piece codes
 extern std::map<std::string, int> LabelCodes;
 
 #endif

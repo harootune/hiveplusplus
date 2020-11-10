@@ -1,607 +1,729 @@
 #include "Board.h"
 #include "PieceInfo.h"
+#include "Engine.h"
 #include "Utils.h"
-#include <iostream>
-#include <algorithm>
+#include <stdexcept>
+#include <cmath>
 
-Board::Board()
+Piece *Board::find(std::string label)
 {
-    turn = 0;
-    white = true;
-    _pieces = PieceTable(this);   
+    try
+    {
+        return _labelToPiece.at(label);
+    }
+    catch (std::out_of_range &e)
+    {
+        return nullptr;
+    };
 };
 
-
-Board::Board(std::map<int, int> pieceConfig)
+Piece *Board::find(std::vector<int> coords)
 {
-    turn = 0;
-    white = true;   
-    _pieceConfig = pieceConfig;
-    _pieces = PieceTable(this);
+    try
+    {
+        std::map<int, Piece*> inner = _coordsToPiece.at(
+            {coords[0], coords[1], coords[2]}
+        );
+        return inner.at(coords[3]);
+    }
+    catch (std::out_of_range &e)
+    {
+        return nullptr;
+    };
 };
 
-
-void Board::makeMove(Move move)
+std::vector<int> Board::top(std::vector<int> coords)
 {
-    // debug
-    std::cout << turn << " " << toString() << std::endl;
-    std::cout << "COORDS MAP BEFORE MOVE " << _pieces.coordsMapToString() << std::endl;
+    std::vector<int> outerCoords;
+    outerCoords.insert(outerCoords.begin(), coords.begin(), coords.begin()+3);
 
-    _pieces.update(move);
-    gamestate = _pieces.checkGameState();
-    turn++;
-    white = !white;
-
-    // debug
-    std::cout << turn << " " << move.toString() << std::endl;
-    std::cout << "COORDS MAP AFTER MOVE " << _pieces.coordsMapToString() << std::endl;
+    try
+    {
+        std::map<int, Piece*> inner = _coordsToPiece.at(outerCoords);
+        if (!inner.empty())
+        {
+            std::map<int, Piece*>::reverse_iterator topPiece = inner.rbegin();
+            for (topPiece; topPiece != inner.rend(); topPiece++)
+            {
+                if (topPiece->second != nullptr)
+                {
+                    outerCoords.push_back(topPiece->first);
+                    return outerCoords;
+                };
+            };
+            outerCoords.push_back(0);
+            return outerCoords;
+        }
+        else
+        {
+            outerCoords.push_back(0);
+            return outerCoords;
+        }
+    }
+    catch (std::out_of_range &e)
+    {
+        outerCoords.push_back(0);
+        return outerCoords;
+    };
 };
 
-
-void Board::makeMove(std::string moveString)
+std::vector<std::vector<int>> Board::adjacencies(std::string label, bool empty)
 {
-    makeMove(_stringToMove(moveString));
+    Piece *neighbor;
+    std::vector<std::vector<int>> existingNeighbors;
+
+    Piece *target = find(label);
+    // empty check here
+    std::vector<std::vector<int>> neighborCoords = target->getAllNeighbors();
+    
+    for (int i = 0; i < 6; i++)
+    {
+        neighborCoords[i] = top(neighborCoords[i]);
+        neighbor = find(neighborCoords[i]);
+        if ((neighbor != nullptr && !empty) ||
+            (neighbor == nullptr && empty))
+        {
+            existingNeighbors.push_back(neighborCoords[i]);
+        };
+    };
+
+    return existingNeighbors;
 };
 
+std::vector<std::vector<int>> Board::adjacencies(Position *pos, bool empty)
+{
+    Piece *neighbor;
+    std::vector<std::vector<int>> existingNeighbors;
+
+    std::vector<std::vector<int>> neighborCoords = pos->getAllNeighbors();
+    
+    for (int i = 0; i < 6; i++)
+    {
+        neighborCoords[i] = top(neighborCoords[i]);
+        neighbor = find(neighborCoords[i]);
+        if ((neighbor != nullptr && !empty) ||
+            (neighbor == nullptr && empty))
+        {
+            existingNeighbors.push_back(neighborCoords[i]);
+        };
+    };
+
+    return existingNeighbors;
+};
+
+void Board::update(Move move, bool reversible)
+{
+    int i;
+    Piece *target;
+    Piece *underPiece;
+    std::vector<int> outer;
+    std::vector<int> newCoords;
+    std::vector<int> underCoords;
+    
+    if (reversible)
+    {
+        _storeUndo(move);
+    };
+
+    if (!move.newPiece)
+    {
+        if (!reversible) // debug
+        {
+            std::cout << "Candidate" << std::endl;
+        };
+
+        std::vector<int> oldCoords;
+
+        target = find(move.from);
+        oldCoords = target->getCoords();
+        newCoords= top(find(move.to)->getNeighbor(move.direction));
+        if (find(newCoords) != nullptr)
+        {
+            newCoords[3]++;
+        };
+        target->setCoords(newCoords);
+
+        // adding new coordinate mapping
+        outer = {newCoords[0], newCoords[1], newCoords[2]};
+        _coordsToPiece[outer][newCoords[3]] = target;
+        
+        // erasing old coordinate mapping
+        outer = {oldCoords[0], oldCoords[1], oldCoords[2]};
+        // this leaves behind the x ,y, z key but breaks searches to full coords by removing v
+        _coordsToPiece[outer].erase(oldCoords[3]);
+
+        // track topping
+        if (newCoords[3] > 0)
+        {
+            underCoords = newCoords;
+            underCoords[3]--;
+            underPiece = find(underCoords);
+            underPiece->isTopped = true; // letting this fail for now to alert to junk underCoords
+        };
+
+        if (oldCoords[3] > 0)
+        {
+            underCoords = oldCoords;
+            underCoords[3]--;
+            underPiece = find(underCoords);
+            underPiece->isTopped = false;
+        };
+    }
+    else
+    {
+        if (!move.firstPiece)
+        {
+            newCoords = find(move.to)->getNeighbor(move.direction);
+            target = new Piece(newCoords, move.code, move.from);
+
+            outer = {newCoords[0], newCoords[1], newCoords[2]};
+            _coordsToPiece[outer][newCoords[3]] = target;
+
+            _labelToPiece[move.from] = target;
+        }
+        else
+        {
+            newCoords = {0, 0, 0, 0};
+            target = new Piece(newCoords, move.code, move.from);
+
+            outer = {newCoords[0], newCoords[1], newCoords[2]};
+            _coordsToPiece[outer][newCoords[3]] = target;
+
+            _labelToPiece[move.from] = target;
+        };
+
+        counts[move.code]++;
+
+        // queen update
+        if (move.code == PieceCodes::wQ)
+        {
+            wQueen = true;
+        }
+        else if (move.code == PieceCodes::bQ)
+        {
+            bQueen = true;
+        };
+    };
+};
+
+void Board::remove(std::string pieceLabel)
+{
+    Piece *target = find(pieceLabel);
+    std::vector<int> coords = target->getCoords();
+    std::vector<int> outer {coords[0], coords[1], coords[2]};
+
+    if (coords[3] > 0)
+    {
+        std::vector<int> underCoords = coords;
+        underCoords[3]--;
+        Piece *underPiece = find(underCoords); // also letting this fail on bad underCoords
+        underPiece->isTopped = false;
+    };
+    
+    _coordsToPiece[outer].erase(coords[3]);
+    _labelToPiece.erase(pieceLabel);
+    counts[target->code]--;
+
+    if (pieceLabel == "wQ")
+    {
+        wQueen = false;
+    }
+    else if (pieceLabel == "bQ")
+    {
+        bQueen = false;
+    };
+
+    delete target; // suspicious
+};
 
 void Board::undoLast()
 {
-    // debug
-    std::cout << turn << " UNDO " << toString() << std::endl;
-    std::cout << "COORDS MAP BEFORE UNDO " << _pieces.coordsMapToString() << std::endl;
-    
-    _pieces.undoLast();
-    gamestate = _pieces.checkGameState();
-    turn--;
-    white = !white;
+    Move *undo = &_undoCache.back(); // DEBUG
 
-    std::cout << "COORDS MAP AFTER UNDO " << _pieces.coordsMapToString() << std::endl;
+    std::cout << engine->turn << " UNDO " <<  undo->toString() << std::endl; // DEBUG
 
-    if (_pieces._undoCache.size() != turn)
+    int code = Utils::labelToCode(undo->from);
+    int count = counts[code];
+
+    if (undo->newPiece)
     {
-        std::cout << "FAILURE AFTER UNDO" << std::endl;;
+        remove(undo->from);
+    } 
+    else
+    {
+        update(*undo, false); // is this dereference appropriate?
     };
 
+    int count2 = counts[code]; // DEBUG
+
+    _undoCache.pop_back();
 };
 
-
-int Board::score()
+bool Board::empty()
 {
-    return _pieces.score();
-};
-
-
-bool Board::_validateMove(std::vector<std::string> move)
-{
-    return true;
-};
-
-Move Board::_stringToMove(std::string moveString)
-{
-    // maybe regex check to start?s
-
-    std::vector<std::string> components = Utils::tokenize(moveString, ' '); // need a better whitespace check
-    
-    // a failed tokenization returns a vector containing a single empty string
-    if (components[0] == "")
-    {  
-        // throw some error - this should never occur unless makeMove is called by something without a regex check
-        std::cout << "Empty movestring detected in Board::_stringToMove" << std::endl;
-        return Move();
+    if (counts.empty())
+    {
+        return true;
     }
     else
     {
-        // this is a first move
-        if (components.size() == 1)
+        std::map<int, int>::iterator countIt;
+
+        for (countIt = counts.begin(); countIt != counts.end(); countIt++)
         {
-            return Move(components[0]);
-        }
-        // this is a normal move
-        else
-        {
-            int direction;
-            std::string destination = "";
-            bool newPiece = _pieces.find(components[0]) == nullptr;
-
-            switch (components[1][0])
+            if (countIt->second != 0)
             {
-                case '\\':
-                    direction = 4;
-                    destination = components[1].substr(1, 2);
-                    break;
-                case '-':
-                    direction = 3;
-                    destination = components[1].substr(1, 2);
-                    break; 
-                case '/':
-                    direction = 2;
-                    destination = components[1].substr(1, 2);
-                    break; 
-                default:
-                    break;
+                return false;
             };
-
-            if (destination == "")
-            {
-                switch (components[1][2])
-                {
-                    case '\\':
-                        direction = 1;
-                        destination = components[1].substr(0, 2);
-                        break;
-                    case '-':
-                        direction = 0;
-                        destination = components[1].substr(0, 2);
-                        break; 
-                    case '/':
-                        direction = 5;
-                        destination = components[1].substr(0, 2);
-                        break; 
-                    default:
-                        break;
-                };
-            };
-
-            return Move(components[0], destination, direction, newPiece);
         };
+        return true;
     };
 };
 
-std::vector<Move> Board::_genPlacementMoves()
+Piece *Board::getFirst()
 {
-    std::map<int, int>::iterator configIt;
-    std::vector<Move> moves;
-
-    if (turn == 0)
+    if (empty())
     {
-        for (configIt = _pieceConfig.begin(); configIt != _pieceConfig.end(); configIt++)
-        {
-            if (PieceCodes::wQ < configIt->first && configIt->first < PieceCodes::bQ && configIt->second > 0) // no queen moves on first turn
-            {
-                moves.push_back(Move(_pieces.nextLabel(configIt->first)));
-            };
-        };
+        return nullptr;
     }
-    else if (turn == 1)
+    else
     {
-        std::vector<int> start {0, 0, 0 ,0};
-        Piece *startPiece = _pieces.find(start);
-        std::vector<int> neighbor;
+        Piece *target = _labelToPiece.begin()->second;
+        return target;
+    };
+};
+
+std::string Board::nextLabel(int code)
+{
+    std::string label = PieceNames[code];
+
+    if (code % 5 != 0)
+    {
+        label += std::to_string(counts[code] + 1);
+    }
+    return label;
+};
+
+void Board::_storeUndo(Move move)
+{
+    if (move.newPiece)
+    {
+        _undoCache.push_back(move); // NOT A MOVE
+    }
+    else
+    {
+        Piece *target = find(move.from);
+        Piece *oldNeighbor = nullptr;
+
+        bool found = false;
 
         for (int i = 0; i < 6; i++)
         {
-            neighbor = startPiece->getNeighbor(i);
-
-            for (configIt = _pieceConfig.begin(); configIt != _pieceConfig.end(); configIt++)
+            oldNeighbor = find(target->getNeighbor(i));
+            
+            if (oldNeighbor != nullptr)
             {
-                if (configIt->first > PieceCodes::bQ && configIt->second > 0) // same queen restriction
-                {
-                    moves.push_back(Move(_pieces.nextLabel(configIt->first), startPiece->label, i, true));
-                };
-            };
+                int reverseDirection = (3 + i) % 6;
+                Move reverseMove(target->label, oldNeighbor->label, reverseDirection);
+                _undoCache.push_back(reverseMove); // maybe a move
+                found = true;
+                break;
+            };   
         };
+
+        if (!found) { std::cout << "FAILED STOREUNDO" << std::endl; };
+    };
+};
+
+std::vector<Piece*> Board::getColorPieces()
+{
+    if (engine != nullptr)
+    {
+        return getColorPieces(engine->white);
     }
     else
     {
-        bool open;
-        int direction;
-        Position toCheck;
-        std::set<std::vector<int>> seen;
-        std::vector<std::vector<int>> adjacentCoords; 
-        std::vector<std::vector<int>>::iterator adjacentIt;
-        std::vector<std::vector<int>> neighborCoords;
-        std::vector<std::vector<int>>::iterator neighborIt;
-        std::map<int, int>::iterator configIt;
+        // PLACEHOLDER: throw some error
+        std::vector<Piece*> badReturn;
+        return badReturn;
+    };
+}
 
-        char key = white ? 'w' : 'b';
-        std::vector<Piece*>::iterator pieceIt;
-        std::vector<Piece*> colorPieces = _pieces.getColorPieces();
+std::vector<Piece*> Board::getColorPieces(bool white)
+{
+    std::map<std::string, Piece*>::iterator labelIt;
+    std::vector<Piece*> targets;
+    char key = white ? 'w' : 'b';
 
-        // for every piece of a given color
-        for (pieceIt = colorPieces.begin(); pieceIt != colorPieces.end(); pieceIt++)
+    for (labelIt = _labelToPiece.begin(); labelIt != _labelToPiece.end(); labelIt++)
+    {
+        if (labelIt->first[0] == key)
         {
-            // if it isn't topped, continue
-            if (!(*pieceIt)->isTopped) // double check this
-            {
-                // for every empty adjacent space
-                neighborCoords = _pieces.adjacencies(*pieceIt, true);
-                for (neighborIt = neighborCoords.begin(); neighborIt != neighborCoords.end(); neighborIt++)
-                {
-                    // if we have not checked this space before, continue
-                    if (seen.find(*neighborIt) == seen.end())
-                    {
-                        seen.insert(*neighborIt);
-                        // if the adjacent space is not adjacent to any enemy pieces, continue
-                        open = true;
-                        toCheck = Position(*neighborIt);
-                        adjacentCoords = _pieces.adjacencies(&toCheck);
-                        for (adjacentIt = adjacentCoords.begin(); adjacentIt != adjacentCoords.end(); adjacentIt++)
-                        {
-                            if (_pieces.find(*adjacentIt)->label[0] != key)
-                            {
-                                open = false;
-                                break;
-                            };
-                        }
-                        if (open)
-                        {
-                            direction = Position::findDirection((*pieceIt)->getCoords(), *neighborIt);
+            targets.push_back(labelIt->second);
+        };
+    };
 
-                            // for every piece
-                            for (configIt = _pieceConfig.begin(); configIt != _pieceConfig.end(); configIt++)
-                            {
-                                // if the piece is on the current player's side, continue
-                                if ((configIt->first < PieceCodes::bQ && white) ||
-                                    (configIt->first >= PieceCodes::bQ && !white))
-                                {
-                                    // if there are any pieces left, continue
-                                    int check = configIt->second - _pieces.counts[configIt->first];
-                                    if (configIt->second - _pieces.counts[configIt->first] > 0)
-                                    {
-                                        //enforcing Queen at turn 4
-                                        if ((turn == 6 && configIt->first == 0) ||
-                                            (turn == 7 && configIt->first == 5) ||
-                                            turn < 6 || turn < 7)
-                                        {
-                                            // store a corresponding move
-                                            moves.push_back(Move(_pieces.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
-                                        };
-                                    };
-                                };
-                            };
-                        };
-                    };
-                };
+    return targets;
+};
+
+std::vector<Piece*> Board::getAllPieces()
+{
+    std::map<std::string, Piece*>::iterator labelIt;
+    std::vector<Piece*> targets;
+
+    for (labelIt = _labelToPiece.begin(); labelIt != _labelToPiece.end(); labelIt++)
+    {
+
+        targets.push_back(labelIt->second);
+
+    };
+
+    return targets;   
+};
+
+std::set<std::vector<int>> Board::getPinned()
+// returns a set of articulation vertices for the current board.
+{
+    if (empty())
+    {
+        return {};
+    };
+
+    _OneHiveInfo info;
+    std::vector<int> rootParent {-1, -1, -1, -1};
+    std::vector<int> start = getFirst()->getCoords();
+    start[3] = 0;
+
+    // this will break if there are no pieces on the board
+    _pinSearch(rootParent, start, &info);
+
+    return info.articulations;
+};
+
+
+void Board::_pinSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info)
+// This is an implementation of a linear-time articulation vertext discovery algorithm described here:
+// https://cp-algorithms.com/graph/cutpoints.html
+{
+    
+    // increment our timer and update our contextual information about this node
+    Position current(location);
+    int children = 0; // child count of current node
+    info->time++;
+    info->visited[location] = true;
+    info->entryTime[location] = info->time;
+    info->earliestTime[location] = info->time;
+    std::vector<int> rootParent {-1, -1, -1, -1};
+
+    // iterate through every adjacency
+    std::vector<std::vector<int>> adj = adjacencies(&current);
+    for (std::vector<int> a: adj)
+    {
+        a[3] = 0; // bottom out the adjacency -- a little janky but works for now
+
+        if (a != parent) // ignore the edge back to the parent
+        {
+            if (info->visited[a]) // this is a back edge
+            {
+                // earliest we can get back to is the entry time of the back node
+                info->earliestTime[location] = std::min(info->earliestTime[location], info->entryTime[a]);
+            }
+            else // this is a tree edge
+            {  
+                // recur the dfs
+                _pinSearch(location, a, info);
+
+                // earliest we can get back to is the earliest node the child can get to
+                info->earliestTime[location] = std::min(info->earliestTime[location], info->earliestTime[a]);
+
+                // if we can go no further back then the current node, this is an articulation vertex
+                if (info->earliestTime[a] >= info->entryTime[location] && parent != rootParent)
+                {
+                    info->articulations.insert(location);
+                }
+                children++;
             };
         };
     };
 
-    return moves;
+    if (parent == rootParent && children > 1)
+    {
+        info->articulations.insert(location);
+    };
 };
 
-
-void Board::_moveSearch(std::string label, int code, Position *current, 
-                        std::vector<Move> &moves, std::set<std::vector<int>> &seen, int depth)
+int Board::checkGameState()
 {
-    if (depth > 0 || code % 5 == 1)
+    // check for empty
+    
+    if (empty()) { return 0; };
+
+    // else
+
+    bool wCapture = false;
+    bool bCapture = false;
+    std::vector<std::vector<int>> adj;
+
+    if (wQueen)
     {
-        int direction;
-        int left;
-        int right;
-
-        Position nextSpace;
-        std::vector<std::vector<int>> nextAdj;
-        std::vector<std::vector<int>>::iterator nextIt;
-        Piece *nextReference;
-        Piece *original;
-        std::vector<std::vector<int>> empties;
-        std::vector<std::vector<int>>::iterator emptyIt;
-        
-        // if we are currently working with a beetle, we want to look at the top of every nearby piece
-        if (code % 5 == 2)
+        adj = adjacencies("wQ");
+        if (adj.size() == 6)
         {
-            std::vector<int> topCoord;
+            wCapture = true;
+        };
+    };
 
-            for (int i = 0; i < 6; i++)
+    if (bQueen)
+    {
+        adj = adjacencies("bQ");
+        if (adj.size() == 6)
+        {
+            bCapture = true;
+        };
+    };
+
+    // enum for organization?
+    if (bCapture && wCapture)
+    {
+        return 2;
+    }
+    else if (bCapture)
+    {
+        return 3;
+    }
+    else if (wCapture)
+    {
+        return 4;
+    }
+    else
+    {
+        return 1;
+    };
+};
+
+// board scoring
+
+int Board::checkMateScore = 100000;
+
+int Board::drawScore = 1;
+
+std::vector<int> Board::baseScores
+{
+    10,
+    10,
+    10,
+    10,
+    10
+};
+
+std::vector<std::vector<int>> Board::offScores
+{
+    {0, -100, -40, 0, 0},
+    {0, 100, 80, 50, 10},
+    {80, 60, 40, 20, 10},
+    {0, 60, 40, 20, 10},
+    {0, 60, 40, 20, 10}
+};
+
+std::vector<std::vector<int>> Board::defScores
+{
+    {0, 0, 0, 0},
+    {0, 50, 20, 10},
+    {180, 200, 50, 10},
+    {0, 160, 0, 0},
+    {0, 50, 20, 10}
+};
+
+int Board::score()
+{
+    if (engine != nullptr)
+    {
+        return score(engine->white);
+    }
+    else
+    {
+        // PLACEHOLDER: throw some error
+        return -1234512345;
+    };
+};
+
+int Board::score(bool white)
+{
+    int sign = white ? 1 : -1;
+    std::set<std::vector<int>> pinned = getPinned();
+    
+    switch (engine->gamestate)
+    {
+        case 2:
+            return drawScore;
+        case 3:
+            return sign * checkMateScore;
+        case 4:
+            return sign * -checkMateScore;
+        default:
+            break;
+    };
+
+    // no captures or draws
+
+    int tempScore;
+    int distance;
+    std::vector<std::vector<int>> adj;
+    int score = 0;
+    std::vector<Piece*> pieces = getAllPieces();
+
+    if (wQueen)
+    {
+         adj = adjacencies("wQ");
+
+        // for every adjacent coordinate with a piece
+        for (std::vector<int> el: adj) 
+        {
+            // if that piece is white, do this
+            if (find(el)->code < PieceCodes::bQ)
             {
-                topCoord = _pieces.top(current->getNeighbor(i));
-                empties.push_back(topCoord);
+                // if the piece is white, +/- by 50
+                score -= 50;
+            }
+            // otherwise
+            else
+            {
+                // if the piece is black, +/- by 100 
+                score -= 100;
+            };
+        };
+    };
+
+    if (bQueen)
+    {
+        adj = adjacencies("bQ");
+
+        // for every adjacent coordinate with a piece
+        for (std::vector<int> el: adj) 
+        {
+            // if that piece is white, do this
+            if (find(el)->code < PieceCodes::bQ)
+            {
+                // if the piece is white, +/- by 100
+                score += 100;
+            }
+            // otherwise
+            else
+            {
+                // if the piece is black, +/- by 50
+                score += 50;
+            };
+        };
+    };
+    
+    for (Piece* p: pieces)
+    {
+        tempScore = 0;
+
+        // if the piece is the same color as our current player, do this
+        if (p->white)
+        {
+            // add base score
+            tempScore += baseScores[p->code % 5];
+
+            // offensive scores
+            if (bQueen)
+            {
+                distance = p->findDistance(find("bQ"));
+                if (distance < 5)
+                {
+                    tempScore += offScores[p->code % 5][distance];
+                };
+            };
+
+            // defensive scores
+            if (wQueen)
+            {
+                distance = p->findDistance(find("wQ"));
+                if (distance < 4)
+                {
+                    tempScore += defScores[p->code % 5][distance];
+                };
             };
         }
         else
         {
-            empties = _pieces.adjacencies(current, true);
-        }
-        
-        // for every empty adjacency to our current space
-        for (emptyIt = empties.begin(); emptyIt != empties.end(); emptyIt++)
-        {   
-            // if we haven't moved through this spot already, continue
-            if (seen.find(*emptyIt) == seen.end())
+            tempScore -= baseScores[p->code % 5];
+
+            if (wQueen)
             {
-                // find the direction of the empty spot and its neighbors
-                direction = Position::findDirection(current->getCoords(), *emptyIt);
-                left = direction == 0 ? 5 : direction - 1;
-                right = direction == 5 ? 0 : direction + 1;
-
-                // if at least one neighbor is empty, continue
-                if (_pieces.find(current->getNeighbor(left)) == nullptr ||
-                    _pieces.find(current->getNeighbor(right)) == nullptr)
-                
+                distance = p->findDistance(find("wQ"));
+                if (distance < 5)
                 {
-                    nextSpace = Position(*emptyIt);
-                    nextAdj = _pieces.adjacencies(&nextSpace);
+                    tempScore -= offScores[p->code % 5][distance];
+                };
+            };
 
-                    // if the empty spot has a neighbor, continue
-                    if (!nextAdj.empty())
-                    {
-                        // check if the neighbor is our original piece
-                        nextReference = nullptr;
-                        original = _pieces.find(label);
-
-                        for (nextIt = nextAdj.begin(); nextIt != nextAdj.end(); nextIt++)
-                        {
-                            if (*nextIt != original->getCoords())
-                            {
-                                nextReference = _pieces.find(*nextIt);
-                                break;
-                            };
-                        };
-
-                        //if we found a non-original-piece neighbor, continue
-                        if (nextReference != nullptr)
-                        {
-                            direction = Position::findDirection(nextReference->getCoords(), nextSpace.getCoords());
-                            
-                            // spider check
-                            if (code % 5 == 4)
-                            {
-                                if (depth == 1)
-                                {
-                                    moves.push_back(Move(label, nextReference->label, direction));
-                                };
-                            }
-                            else
-                            {
-                                moves.push_back(Move(label, nextReference->label, direction));
-                            };
-                            
-                            // note that we've now seen this location
-                            seen.insert(*emptyIt);
-
-                            // continue the search
-                            _moveSearch(label, code, &nextSpace, moves, seen, depth - 1);
-                        };
-                    };
+            if (bQueen)
+            {
+                distance = p->findDistance(find("bQ"));
+                if (distance < 4)
+                {
+                    tempScore -= defScores[p->code % 5][distance];
                 };
             };
         };
-    };
-};
 
-
-void Board::_hopperSearch(std::string label, int direction, Position *current, std::vector<Move> &moves)
-{
-    // if we're currently over a piece, continue searching
-    if (_pieces.find(current->getCoords()))
-    {
-        Position next = current->getNeighbor(direction);
-        _hopperSearch(label, direction, &next, moves);
-    }
-    // otherwise, we've found a stopping point
-    else
-    {
-        std::vector<std::vector<int>> adjacencies = _pieces.adjacencies(current);
-        Piece *ref = _pieces.find(adjacencies[0]);
-        int refDir = Position::findDirection(ref->getCoords(), current->getCoords());
-        moves.push_back(Move(label, ref->label, refDir));
-    };
-};
-
-
-std::vector<Move> Board::_genQueenMoves(std::string label)
-{
-    std::vector<Move> moves;
-    std::set<std::vector<int>> seen;
-    Piece *current = _pieces.find(label);
-    _moveSearch(label, current->code, current, moves, seen, 1);
-    return moves;
-};
-
-
-std::vector<Move> Board::_genAntMoves(std::string label)
-{
-    std::vector<Move> moves;
-    std::set<std::vector<int>> seen;
-    Piece *current = _pieces.find(label);
-    _moveSearch(label, current->code, current, moves, seen, -1);
-    return moves;
-};
-
-
-std::vector<Move> Board::_genBeetleMoves(std::string label)
-{
-    std::vector<Move> moves;
-    std::set<std::vector<int>> seen;
-    Piece *current = _pieces.find(label);
-    _moveSearch(label, current->code, current, moves, seen, 1);
-    return moves;
-};
-
-
-std::vector<Move> Board::_genHopperMoves(std::string label)
-{
-    std::vector<Move> moves;
-    int direction;
-    Piece *current = _pieces.find(label);
-    std::vector<std::vector<int>> adjacencies = _pieces.adjacencies(current);
-    std::vector<std::vector<int>>::iterator adjacentIt = adjacencies.begin();
-
-    // initiate a hopper search for every direction with an adjacency
-    for (adjacentIt; adjacentIt != adjacencies.end(); adjacentIt++)
-    {
-        direction = Position::findDirection(current->getCoords(), *adjacentIt);
-        _hopperSearch(label, direction, current, moves);
-    };
-
-    return moves;
-};
-
-
-std::vector<Move> Board::_genSpiderMoves(std::string label)
-{
-    std::vector<Move> moves;
-    std::set<std::vector<int>> seen;
-    Piece *current = _pieces.find(label);
-    _moveSearch(label, current->code, current, moves, seen, 3);
-    return moves;
-};
-
-
-std::vector<Move> Board::genAllMoves()
-{
-    std::vector<Move> moves;
-    std::vector<Piece*> genTargets;
-    std::vector<Piece*>::iterator targetIt;
-    std::vector<Move> genResults;
-
-    // get placement moves
-    genResults = _genPlacementMoves();
-    moves.insert(moves.end(), genResults.begin(), genResults.end());
-
-    if ((white && _pieces.wQueen) || // if white + wQ on board
-        (!white && _pieces.bQueen)) // or black + bQ on board, add piece movement
-    {
-        genTargets = _pieces.getColorPieces();
-
-        if (!genTargets.empty())
+        if (pinned.find(p->getCoords()) != pinned.end())
         {
-            Piece *current;
-            targetIt = genTargets.begin();
-            std::set<std::vector<int>> pinned = _pieces.getPinned();
-
-            for (targetIt; targetIt != genTargets.end(); targetIt++)
-            {
-                current = *targetIt;
-                // universal checks
-                if (pinned.find(current->getCoords()) == pinned.end())
-                {
-                    switch (current->code % 5)
-                    {
-                        case 0:
-                            genResults = _genQueenMoves(current->label);
-                            break;
-                        case 1:
-                            genResults = _genAntMoves(current->label);
-                            break;
-                        case 2:
-                            genResults = _genBeetleMoves(current->label);
-                            break;
-                        case 3:
-                            genResults = _genHopperMoves(current->label);
-                            break;
-                        case 4:
-                            genResults = _genSpiderMoves(current->label);
-                            break;
-                        default:
-                            // throw some error
-                            std::cout << "Invalid code detected in genAllMoves." << std::endl;
-                    };
-                    moves.insert(moves.end(), genResults.begin(), genResults.end());
-                };
-            };
-        };
-    };
-
-    return moves;
-};
-
-Move Board::recommendMove()
-{
-    Move bestMove;
-    int alpha = -1000000;
-    int beta = 1000000;
-
-    for (int i = 1; i <= 5; i++)
-    {
-        bestMove = _negaMax(alpha, beta, i);
-    };
-
-    return bestMove;
-};
-
-Move Board::_negaMax(int alpha, int beta, int depth)
-{
-    Move best;
-    int val;
-    int bestVal = -1000000;
-    std::vector<Move> moves = genAllMoves();
-
-    if (_pieces._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE BEFORE INIT" << std::endl;
-    };
-
-    for (Move m: moves)
-    {
-        makeMove(m);
-
-        val = -_negaMaxSearch(-beta, -alpha, depth-1, depth);
-        if (val > bestVal)
-        {
-            best = m;
-            bestVal = val;
+            tempScore /= 2; // halve scores for pinned pieces
         };
 
-        undoLast();
+        score += tempScore;
     };
 
-    if (_pieces._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE AFTER INIT" << std::endl;
-    };
-
-    return best;
+    return sign * score;
 };
 
-int Board::_negaMaxSearch(int alpha, int beta, int depth, int i)
+std::string Board::coordsMapToString()
 {
-    if (_pieces._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE BEFORE SEARCH" << std::endl;
-    };
-
-    if (gamestate > GameStates::InProgress || depth == 0)
-    {
-        return score();    
-    };
-
-    int newAlpha = alpha;
-    int val = -1000000;
-    std::vector<Move> moves = genAllMoves();
-
-    for (Move m: moves)
-    {
-        makeMove(m);
-
-        val = std::max(val, -_negaMaxSearch(-beta, -newAlpha, depth-1, i));
-        newAlpha = std::max(newAlpha, val);
-        
-        undoLast();
-
-        if (newAlpha >= beta)
-        {
-          // failing high - we will want to do more with this
-          break;  
-        };
-    };
-
-    if (_pieces._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE AFTER SEARCH" << std::endl;
-    };
-
-    return val;
-
-};
-
-
-std::string Board::toString()
-{
+    std::map<std::vector<int>, std::map<int, Piece*>>::iterator outerIt;
+    std::map<int, Piece*>::iterator innerIt;
     std::string repr = "";
 
-    std::vector<Piece*> pcs = _pieces.getAllPieces();
-    for (Piece *p: pcs)
+    for (outerIt = _coordsToPiece.begin(); outerIt != _coordsToPiece.end(); outerIt++)
     {
-        repr += " " + p->label + " " + 
-                std::to_string(p->getCoords()[0]) + "," +
-                std::to_string(p->getCoords()[1]) + "," +
-                std::to_string(p->getCoords()[2]) + "," +
-                std::to_string(p->getCoords()[3]) + ":";
+        for (innerIt = outerIt->second.begin(); innerIt != outerIt->second.end(); innerIt++)
+        {
+            if (innerIt->second != nullptr)
+            {
+                repr += " " + innerIt->second->label + " " + 
+                    std::to_string(outerIt->first[0]) + "," +
+                    std::to_string(outerIt->first[1]) + "," +
+                    std::to_string(outerIt->first[2]) + "," +
+                    std::to_string(innerIt->first) + ":";
+            };
+        };
     };
 
     return repr;
 };
+
+Board::~Board()
+{
+    std::vector<Piece*> toDelete;
+    std::vector<Piece*>::iterator deleteIt;
+    std::map<std::string, Piece*>::iterator labelIt;
+
+    for (labelIt = _labelToPiece.begin(); labelIt != _labelToPiece.end(); labelIt++)
+    {
+        toDelete.push_back(labelIt->second);
+    };
+
+    for (deleteIt = toDelete.begin(); deleteIt != toDelete.end(); deleteIt++)
+    {
+        delete *deleteIt;
+    };
+};
+
+
+
+
 
 
 

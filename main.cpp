@@ -1,8 +1,8 @@
 #include "source/Position.h"
 #include "source/ZobristHash.h"
 #include "source/Move.h"
-#include "source/PieceTable.h"
 #include "source/Board.h"
+#include "source/Engine.h"
 #include "source/PieceInfo.h"
 #include "source/Interface.h"
 #include "source/Utils.h"
@@ -38,7 +38,7 @@ int main()
         {PieceCodes::bS, 2}
     };
 
-    Board board(defaultConfig);
+    Engine engine(defaultConfig);
     std::vector<Move> moves;
 
     //testing movement
@@ -58,9 +58,9 @@ int main()
     // Move moveF("bA1", "bB1", 1, true);
     // Move moveG("wB1", "bB1", 4);
 
-    board.makeMove(moveA);
-    board.makeMove(moveB);
-    Move recc = board.recommendMove();
+    engine.makeMove(moveA);
+    engine.makeMove(moveB);
+    Move recc = engine.recommendMove();
 
 
     // board.makeMove(moveB);
@@ -108,7 +108,7 @@ int main()
     // recc = board.recommendMove();
 
 
-    bool check = Utils::isGameString("bQ1 \\wQ1");
+    bool check = Utils::isMoveString("bQ1 \\wQ1");
 
     UHPInterface inter(defaultConfig);
     // inter.initTerminal();

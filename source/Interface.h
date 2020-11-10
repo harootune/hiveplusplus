@@ -2,21 +2,32 @@
 
 #ifndef _UHPINTERFACE_
 #define _UHPINTERFACE_
-#include "Board.h"
+#include "Engine.h"
 
 class UHPInterface
+// A UHP command line through which the Engine can be interacted with
 {
     public:
+        /* Constructors */
         UHPInterface() {};
-        UHPInterface(std::map<int, int> pieceConfig) { _game = Board(pieceConfig); };
+        UHPInterface(std::map<int, int> pieceConfig) { _game = Engine(pieceConfig); };
 
+        /* Misc */
+        // Initialize the command line
         void initTerminal();
         
+        /* Destructor */
         ~UHPInterface() {};
     
     private:
-        Board _game;
+        /* Member Variables */
+        // The engine which this UHPInterface connects to
+        Engine _game;
+
+        /* Command Processing */
+        // process an info command
         void _info(std::string input);
+        // process a play command
         void _play(std::string input);
 };
 

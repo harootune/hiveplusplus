@@ -59,7 +59,7 @@ std::string Utils::strip(std::string input)
     return output;
 };
 
-bool Utils::isGameString(std::string input)
+bool Utils::isMoveString(std::string input)
 {
     // could be static somewhere
     std::regex pattern("([wb][ABGQW]([1-9]?[0-9]?)?)(\\s*([\\\\/-][wb][ABGQW]([1-9]?[0-9]?)?)|([wb][ABGQW]([1-9]?[0-9]?)?[\\\\/-]))?");
@@ -73,6 +73,10 @@ int Utils::labelToCode(std::string label)
   return LabelCodes[prefix];  
 };
 
-
-
-// ([wb][ABGQW]([1-9]?[0-9]?)?)\\s(([\\/-][wb][ABGQW]([1-9]?[0-9]?)?)|([wb][ABGQW]([1-9]?[0-9]?)?[\\/-]))
+std::vector<int> Utils::concatCoords(std::vector<int> coords, int piece)
+{
+    std::vector<int> tempCoords = coords;
+    tempCoords.push_back(piece);
+    
+    return tempCoords;
+};

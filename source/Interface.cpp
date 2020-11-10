@@ -9,6 +9,7 @@ void UHPInterface::initTerminal()
     std::string input;
     std::vector<std::string> tokens;
 
+    // Terminal loop
     while (true)
     {
         std::getline(std::cin, input);
@@ -62,7 +63,7 @@ void UHPInterface::_play(std::string input)
             // implement passing behavior
             std::cout << "Passing..." << std::endl;
         }
-        else if (Utils::isGameString(second))
+        else if (Utils::isMoveString(second))
         {
             // check for validity of move in Board object
             _game.makeMove(second);
