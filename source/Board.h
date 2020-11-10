@@ -39,12 +39,6 @@ class Board
         bool wQueen = false;
         // Whether or not the black queen is present on board
         bool bQueen = false;
-        // Pointer to the engine compositing this Board, if any
-        Engine *engine = nullptr;
-
-        /* Constructors */
-        Board() {};
-        Board(Engine *e) { engine = e; };
 
         /* Piece Location */
         // Find a piece using a label
@@ -59,8 +53,6 @@ class Board
         std::vector<std::vector<int>> adjacencies(Position *pos, bool empty = false);
         // returns a pointer to the first piece in the table (used to get an arbitrary valid piece)
         Piece* getFirst();
-        // get all pieces of the Engine's current player's color
-        std::vector<Piece*> getColorPieces();
         // get all pieces of the specified color (true == white, false == black)
         std::vector<Piece*> getColorPieces(bool white);
         // get all pieces on the board
@@ -87,8 +79,6 @@ class Board
         static std::vector<std::vector<int>> offScores;
         // scaling defense bonuses per piece code
         static std::vector<std::vector<int>> defScores;
-        // get the score for the Engine's current player's color
-        int score ();
         // get the score for the specified color (true == white, false == black)
         int score (bool white);
 

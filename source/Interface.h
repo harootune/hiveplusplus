@@ -29,6 +29,12 @@ class UHPInterface
         void _info(std::string input);
         // process a play command
         void _play(std::string input);
+        // process a bestmove command
+        void _bestMove(std::string input);
+        // process an undo command
+        void _undo(std::string input);
+        // process a pass command
+        void _pass(std::string input);
 };
 
 #endif

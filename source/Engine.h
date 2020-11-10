@@ -55,18 +55,19 @@ class Engine
         Move recommendMove();
 
         /* Misc */
-        // Produce a string representing the current board
+        // Produce a GameString representing the current board
         std::string toString();
         
         /* DEBUG */
         int score();
+        std::string toCoordString();
 
     private:
         /* Member Variables */
         // The current configuration of pieces
         std::map<int, int> _pieceConfig;
         // The move history of this engine
-        // std::vector<std::string> _moveCache;
+        std::vector<std::string> _moveStringCache;
         // Tracks the current Zobrist Hash for this engine
         ZobristHash _hash;
         // Tracks the location of pieces and allows for easy traversal between them

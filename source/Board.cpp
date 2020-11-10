@@ -1,9 +1,9 @@
 #include "Board.h"
 #include "PieceInfo.h"
-#include "Engine.h"
 #include "Utils.h"
 #include <stdexcept>
 #include <cmath>
+
 
 Piece *Board::find(std::string label)
 {
@@ -240,7 +240,7 @@ void Board::undoLast()
 {
     Move *undo = &_undoCache.back(); // DEBUG
 
-    std::cout << engine->turn << " UNDO " <<  undo->toString() << std::endl; // DEBUG
+    // std::cout << engine->turn << " UNDO " <<  undo->toString() << std::endl; // DEBUG
 
     int code = Utils::labelToCode(undo->from);
     int count = counts[code];
@@ -334,20 +334,6 @@ void Board::_storeUndo(Move move)
         if (!found) { std::cout << "FAILED STOREUNDO" << std::endl; };
     };
 };
-
-std::vector<Piece*> Board::getColorPieces()
-{
-    if (engine != nullptr)
-    {
-        return getColorPieces(engine->white);
-    }
-    else
-    {
-        // PLACEHOLDER: throw some error
-        std::vector<Piece*> badReturn;
-        return badReturn;
-    };
-}
 
 std::vector<Piece*> Board::getColorPieces(bool white)
 {
@@ -534,25 +520,13 @@ std::vector<std::vector<int>> Board::defScores
     {0, 50, 20, 10}
 };
 
-int Board::score()
-{
-    if (engine != nullptr)
-    {
-        return score(engine->white);
-    }
-    else
-    {
-        // PLACEHOLDER: throw some error
-        return -1234512345;
-    };
-};
-
 int Board::score(bool white)
 {
     int sign = white ? 1 : -1;
+    int gameState = checkGameState();
     std::set<std::vector<int>> pinned = getPinned();
     
-    switch (engine->gamestate)
+    switch (gameState)
     {
         case 2:
             return drawScore;

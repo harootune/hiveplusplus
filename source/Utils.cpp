@@ -62,8 +62,8 @@ std::string Utils::strip(std::string input)
 bool Utils::isMoveString(std::string input)
 {
     // could be static somewhere
-    std::regex pattern("([wb][ABGQW]([1-9]?[0-9]?)?)(\\s*([\\\\/-][wb][ABGQW]([1-9]?[0-9]?)?)|([wb][ABGQW]([1-9]?[0-9]?)?[\\\\/-]))?");
-    
+    std::regex pattern("([wb][ABGQWS]([1-9]?[0-9]?)?)(\\s*(([\\\\/-][wb][ABGQWS]([1-9]?[0-9]?)?)|([wb][ABGQWS]([1-9]?[0-9]?)?[\\\\/-])))?");
+
     return std::regex_match(input, pattern);
 };
 

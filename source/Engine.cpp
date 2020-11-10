@@ -3,6 +3,7 @@
 #include "Utils.h"
 #include <iostream>
 #include <algorithm>
+#include <regex>
 
 
 Engine::Engine(std::map<int, int> pieceConfig)
@@ -10,16 +11,16 @@ Engine::Engine(std::map<int, int> pieceConfig)
     turn = 0;
     white = true;   
     _pieceConfig = pieceConfig;
-    _board = Board(this);
 };
 
 
 void Engine::makeMove(Move move)
 {
     // DEBUG
-    std::cout << turn << " " << toString() << std::endl;
+    std::cout << turn << " " << toCoordString() << std::endl;
     std::cout << "COORDS MAP BEFORE MOVE " << _board.coordsMapToString() << std::endl;
 
+    _moveStringCache.push_back(move.toString());
     _board.update(move);
     gamestate = _board.checkGameState();
     turn++;
@@ -40,9 +41,10 @@ void Engine::makeMove(std::string moveString)
 void Engine::undoLast()
 {
     // DEBUG
-    std::cout << turn << " UNDO " << toString() << std::endl;
+    std::cout << turn << " UNDO " << toCoordString() << std::endl;
     std::cout << "COORDS MAP BEFORE UNDO " << _board.coordsMapToString() << std::endl;
     
+    _moveStringCache.pop_back();
     _board.undoLast();
     gamestate = _board.checkGameState();
     turn--;
@@ -60,7 +62,7 @@ void Engine::undoLast()
 
 int Engine::score()
 {
-    return _board.score();
+    return _board.score(white);
 };
 
 
@@ -93,23 +95,31 @@ Move Engine::_stringToMove(std::string moveString)
         else
         {
             int direction;
+            int labelLength = 3;
             std::string destination = "";
             bool newPiece = _board.find(components[0]) == nullptr;
+
+            // queen check
+            std::regex pattern("[bw]Q");
+            if (std::regex_search(components[1], pattern) == true)
+            {
+                labelLength = 2;
+            };
 
             // find direction if direction symbol precedes the destination piece
             switch (components[1][0])
             {
                 case '\\':
                     direction = Directions::UpLeft;
-                    destination = components[1].substr(1, 2);
+                    destination = components[1].substr(1, labelLength);
                     break;
                 case '-':
                     direction = Directions::Left;
-                    destination = components[1].substr(1, 2);
+                    destination = components[1].substr(1, labelLength);
                     break; 
                 case '/':
                     direction = Directions::DownLeft;
-                    destination = components[1].substr(1, 2);
+                    destination = components[1].substr(1, labelLength);
                     break; 
                 default:
                     break;
@@ -117,25 +127,26 @@ Move Engine::_stringToMove(std::string moveString)
             // find direction if direction symbol comes after the destination piece
             if (destination == "")
             {
-                switch (components[1][2])
+                switch (components[1][labelLength])
                 {
                     case '\\':
                         direction = Directions::DownRight;
-                        destination = components[1].substr(0, 2);
+                        destination = components[1].substr(0, labelLength);
                         break;
                     case '-':
                         direction = Directions::Right;
-                        destination = components[1].substr(0, 2);
+                        destination = components[1].substr(0, labelLength);
                         break; 
                     case '/':
                         direction = Directions::UpRight;
-                        destination = components[1].substr(0, 2);
+                        destination = components[1].substr(0, labelLength);
                         break; 
                     default:
                         break;
                 };
             };
-
+            
+            destination = Utils::strip(destination);
             return Move(components[0], destination, direction, newPiece);
         };
     };
@@ -189,7 +200,7 @@ std::vector<Move> Engine::_genPlacementMoves()
 
         char key = white ? 'w' : 'b';
         std::vector<Piece*>::iterator pieceIt;
-        std::vector<Piece*> colorPieces = _board.getColorPieces();
+        std::vector<Piece*> colorPieces = _board.getColorPieces(white);
 
         // for every piece of a given color
         for (pieceIt = colorPieces.begin(); pieceIt != colorPieces.end(); pieceIt++)
@@ -235,7 +246,7 @@ std::vector<Move> Engine::_genPlacementMoves()
                                         //enforcing Queen at turn 4
                                         if ((turn == 6 && configIt->first == 0) ||
                                             (turn == 7 && configIt->first == 5) ||
-                                            turn < 6 || turn < 7)
+                                            turn < 6 || turn > 7)
                                         {
                                             // store a corresponding move
                                             moves.push_back(Move(_board.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
@@ -446,7 +457,7 @@ std::vector<Move> Engine::genAllMoves()
     if ((white && _board.wQueen) || // if white + wQ on board
         (!white && _board.bQueen)) // or black + bQ on board, add piece movement
     {
-        genTargets = _board.getColorPieces();
+        genTargets = _board.getColorPieces(white);
 
         if (!genTargets.empty())
         {
@@ -454,11 +465,12 @@ std::vector<Move> Engine::genAllMoves()
             targetIt = genTargets.begin();
             std::set<std::vector<int>> pinned = _board.getPinned();
 
-            for (targetIt; targetIt != genTargets.end(); targetIt++)
+            for (targetIt; targetIt != genTargets.end(); targetIt++) // maybe convert
             {
                 current = *targetIt;
+    
                 // universal checks
-                if (pinned.find(current->getCoords()) == pinned.end())
+                if (pinned.find(current->getCoords()) == pinned.end() && !current->isTopped)
                 {
                     switch (current->code % 5)
                     {
@@ -523,6 +535,12 @@ Move Engine::_negaMax(int alpha, int beta, int depth)
         val = -_negaMaxSearch(-beta, -alpha, depth-1);
         if (val > bestVal)
         {
+            // DEBUG
+            if (depth == 3)
+            {
+                std::cout << "Foo";
+            };
+
             best = m;
             bestVal = val;
         };
@@ -584,6 +602,17 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth)
 
 
 std::string Engine::toString()
+{
+    std::string repr = "";
+    for (std::string moveString: _moveStringCache)
+    {
+        repr += moveString += ";";
+    };
+    return repr;
+}
+
+
+std::string Engine::toCoordString()
 {
     std::string repr = "";
 
