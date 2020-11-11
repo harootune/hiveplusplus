@@ -85,6 +85,8 @@ class Board
         /* Misc */
         // return true if the board is empty, false otherwise
         bool empty();
+        // reset the board to an empty state
+        void clear();
         // return the next label in sequence for a given piece code
         std::string nextLabel(int code);
         // returns a code indicating the current gamestate of the board (captures, draws, etc)
@@ -108,6 +110,8 @@ class Board
         void _storeUndo(Move move);
         // Recursive search for articulation vertices, used with getPinned
         void _pinSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info);
+        // Delete all dynamically allocated Piece objects to prevent memory leakage
+        void _clearPieces();
 };
 
 

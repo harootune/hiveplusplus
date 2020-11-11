@@ -280,6 +280,17 @@ bool Board::empty()
     };
 };
 
+void Board::clear()
+{
+    _clearPieces();
+    _labelToPiece.clear();
+    _coordsToPiece.clear();
+    _undoCache.clear();
+    counts.clear();
+    wQueen = false;
+    bQueen = false;
+};
+
 Piece *Board::getFirst()
 {
     if (empty())
@@ -678,7 +689,7 @@ std::string Board::coordsMapToString()
     return repr;
 };
 
-Board::~Board()
+void Board::_clearPieces()
 {
     std::vector<Piece*> toDelete;
     std::vector<Piece*>::iterator deleteIt;
@@ -693,6 +704,11 @@ Board::~Board()
     {
         delete *deleteIt;
     };
+};
+
+Board::~Board()
+{
+    _clearPieces();
 };
 
 

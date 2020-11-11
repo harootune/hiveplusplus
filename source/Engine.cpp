@@ -10,6 +10,7 @@ Engine::Engine(std::map<int, int> pieceConfig)
 {
     turn = 0;
     white = true;   
+    gamestate = GameStates::NotStarted;
     _pieceConfig = pieceConfig;
 };
 
@@ -20,7 +21,7 @@ void Engine::makeMove(Move move)
     std::cout << turn << " " << toCoordString() << std::endl;
     std::cout << "COORDS MAP BEFORE MOVE " << _board.coordsMapToString() << std::endl;
 
-    _moveStringCache.push_back(move.toString());
+    history.push_back(move.toString());
     _board.update(move);
     gamestate = _board.checkGameState();
     turn++;
@@ -44,7 +45,7 @@ void Engine::undoLast()
     std::cout << turn << " UNDO " << toCoordString() << std::endl;
     std::cout << "COORDS MAP BEFORE UNDO " << _board.coordsMapToString() << std::endl;
     
-    _moveStringCache.pop_back();
+    history.pop_back();
     _board.undoLast();
     gamestate = _board.checkGameState();
     turn--;
@@ -189,6 +190,7 @@ std::vector<Move> Engine::_genPlacementMoves()
     else
     {
         bool open;
+        bool queenCheck;
         int direction;
         Position toCheck;
         std::set<std::vector<int>> seen;
@@ -243,14 +245,28 @@ std::vector<Move> Engine::_genPlacementMoves()
                                     int check = configIt->second - _board.counts[configIt->first];
                                     if (configIt->second - _board.counts[configIt->first] > 0)
                                     {
+                                        queenCheck = false;
                                         //enforcing Queen at turn 4
-                                        if ((turn == 6 && configIt->first == 0) ||
-                                            (turn == 7 && configIt->first == 5) ||
-                                            turn < 6 || turn > 7)
+                                        if (turn == 6 && !_board.wQueen)
                                         {
-                                            // store a corresponding move
-                                            moves.push_back(Move(_board.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
+                                            if (configIt->first == PieceCodes::wQ)
+                                            {
+                                                queenCheck = true;
+                                            };
+                                        }
+                                        else if (turn == 7 && !_board.bQueen)
+                                        {
+                                            if (configIt->first == PieceCodes::bQ)
+                                            {
+                                                queenCheck = true;
+                                            };
+                                        }
+                                        else
+                                        {
+                                            queenCheck = true;
                                         };
+                                        // store a corresponding move
+                                        moves.push_back(Move(_board.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
                                     };
                                 };
                             };
@@ -600,16 +616,59 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth)
 
 };
 
-
 std::string Engine::toString()
 {
     std::string repr = "";
-    for (std::string moveString: _moveStringCache)
+
+    std::string status;
+    switch(gamestate)
+    {
+        case GameStates::NotStarted:
+            status = "NotStarted";
+            break;
+        case GameStates::InProgress:
+            status = "InProgress";
+            break;
+        case GameStates::Draw:
+            status = "Draw";
+            break;
+        case GameStates::WhiteWins:
+            status = "WhiteWins";
+            break;
+        case GameStates::BlackWins:
+            status = "BlackWins";
+            break;
+        default:
+            status = "ERRORSTATUS";
+            break;
+    };
+    repr += status + ";";
+
+    if (white)
+    {
+        repr += "White[" + std::to_string(turn / 2 + 1) + "];";
+    }
+    else
+    {
+        repr += "Black[" + std::to_string((turn / 2) + 1) + "];";
+    };
+
+    for (std::string moveString: history)
     {
         repr += moveString += ";";
     };
-    return repr;
-}
+    return repr.substr(0, repr.size()-1);
+};
+
+
+void Engine::reset()
+{
+    history.clear();
+    _board.clear();
+    turn = 0;
+    gamestate = GameStates::NotStarted;
+    white = true;
+};
 
 
 std::string Engine::toCoordString()

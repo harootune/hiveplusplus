@@ -18,8 +18,8 @@ enum GameStates
     NotStarted,
     InProgress,
     Draw,
-    BCapture,
-    WCapture
+    WhiteWins,
+    BlackWins
 };
 
 class Engine
@@ -33,6 +33,8 @@ class Engine
         bool white;
         // The current gamestate code
         int gamestate;
+        // The move history of this engine
+        std::vector<std::string> history;
 
         /* Constructors */
         Engine() {};
@@ -57,6 +59,8 @@ class Engine
         /* Misc */
         // Produce a GameString representing the current board
         std::string toString();
+        // Reset the game to a beginning state
+        void reset();
         
         /* DEBUG */
         int score();
@@ -65,9 +69,7 @@ class Engine
     private:
         /* Member Variables */
         // The current configuration of pieces
-        std::map<int, int> _pieceConfig;
-        // The move history of this engine
-        std::vector<std::string> _moveStringCache;
+        std::map<int, int> _pieceConfig;\
         // Tracks the current Zobrist Hash for this engine
         ZobristHash _hash;
         // Tracks the location of pieces and allows for easy traversal between them

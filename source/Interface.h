@@ -35,6 +35,10 @@ class UHPInterface
         void _undo(std::string input);
         // process a pass command
         void _pass(std::string input);
+        // process a validmoves command
+        void _validMoves(std::string input);
+        // process a newgame command
+        void _newGame(std::string input);
 };
 
 #endif
