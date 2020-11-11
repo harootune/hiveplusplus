@@ -289,6 +289,8 @@ void Engine::_moveSearch(std::string label, int code, Position *current,
         int direction;
         int left;
         int right;
+        Piece* leftBlock;
+        Piece* rightBlock;
 
         Position nextSpace;
         std::vector<std::vector<int>> nextAdj;
@@ -298,22 +300,18 @@ void Engine::_moveSearch(std::string label, int code, Position *current,
         std::vector<std::vector<int>> empties;
         std::vector<std::vector<int>>::iterator emptyIt;
         
+        empties = _board.adjacencies(current, true);
+
         // if we are currently working with a beetle, we want to look at the top of every nearby piece
         if (code % 5 == 2)
         {
-            std::vector<int> topCoord;
-
-            for (int i = 0; i < 6; i++)
+            for (std::vector<int> occ: _board.adjacencies(current))
             {
-                topCoord = _board.top(current->getNeighbor(i));
-                empties.push_back(topCoord);
+                occ[3] += 1;
+                empties.push_back(occ);
             };
-        }
-        else
-        {
-            empties = _board.adjacencies(current, true);
-        }
-        
+        };
+
         // for every empty adjacency to our current space
         for (emptyIt = empties.begin(); emptyIt != empties.end(); emptyIt++)
         {   
@@ -324,11 +322,32 @@ void Engine::_moveSearch(std::string label, int code, Position *current,
                 direction = Position::findDirection(current->getCoords(), *emptyIt);
                 left = direction == 0 ? 5 : direction - 1;
                 right = direction == 5 ? 0 : direction + 1;
+                leftBlock = _board.find(current->getNeighbor(left));
+                rightBlock = _board.find(current->getNeighbor(right));
+
+                // double check potential blocking pieces for beetles
+                // beetles are slowly driving me insane. Can't wait for ladybugs!
+                if (code % 5 == 2)
+                {
+                    std::vector<int> topCoord;
+
+                    if (leftBlock != nullptr)
+                    {
+                        topCoord = leftBlock->getCoords();
+                        topCoord[3] = current->getCoords()[3];
+                        leftBlock = _board.find(topCoord);
+                    };
+
+                    if (rightBlock != nullptr)
+                    {
+                        topCoord = rightBlock->getCoords();
+                        topCoord[3] = current->getCoords()[3];
+                        rightBlock = _board.find(topCoord);
+                    };
+                };
 
                 // if at least one neighbor is empty, continue
-                if (_board.find(current->getNeighbor(left)) == nullptr ||
-                    _board.find(current->getNeighbor(right)) == nullptr)
-                
+                if (leftBlock == nullptr || rightBlock == nullptr)
                 {
                     nextSpace = Position(*emptyIt);
                     nextAdj = _board.adjacencies(&nextSpace);
@@ -339,6 +358,14 @@ void Engine::_moveSearch(std::string label, int code, Position *current,
                         // check if the neighbor is our original piece
                         nextReference = nullptr;
                         original = _board.find(label);
+
+                        // Add a bottom piece if our piece is elevated
+                        if (original->getCoords()[3] > 0)
+                        {
+                            std::vector<int> underCoords = original->getCoords();
+                            underCoords[3]--;
+                            nextAdj.push_back(underCoords);
+                        };
 
                         for (nextIt = nextAdj.begin(); nextIt != nextAdj.end(); nextIt++)
                         {
