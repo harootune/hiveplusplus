@@ -67,9 +67,97 @@ int Engine::score()
 };
 
 
-bool Engine::_validateMove(std::vector<std::string> move)
+Move *Engine::validateMove(Move *move)
 {
-    return true;
+    Piece *onBoard = _board.find(move->from);
+
+    //Is this asking us to place a piece which is already on the board?
+    if (move->newPiece)
+    {
+        // if a piece with this label is on the board, do this
+        if (onBoard != nullptr)
+        {
+            // if there are still more pieces in this category to place, do this
+            if (_pieceConfig[move->code] - _board.counts[move->code] > 0)
+            {
+                // update the from label with the next valid label
+                move->from = _board.nextLabel(move->code);
+            }
+            else
+            {
+                // otherwise, return nullptr
+                return nullptr;
+            };
+        }
+        else if (move->from != _board.nextLabel(move->code))
+        {
+            move->from = _board.nextLabel(move->code);
+        };
+
+        // check to see if this is a valid placement move
+        std::vector<Move> placements = _genPlacementMoves();
+
+        for (Move m: placements)
+        {
+            if (*move == m)
+            {
+                return move;
+            };
+        };
+
+        return nullptr;
+    }
+    else
+    {
+        if (onBoard != nullptr)
+        {
+            std::vector<Move> possibleMoves;
+            switch (move->code % 5)
+            {
+                case PieceCodes::wQ:
+                    possibleMoves = _genQueenMoves(move->from);
+                    break;
+                case PieceCodes::wA:
+                    possibleMoves = _genAntMoves(move->from);
+                    break;
+                case PieceCodes::wB:
+                    possibleMoves = _genBeetleMoves(move->from);
+                    break;
+                case PieceCodes::wG:
+                    possibleMoves = _genHopperMoves(move->from);
+                    break;
+                case PieceCodes::wS:
+                    possibleMoves = _genSpiderMoves(move->from);
+                    break;
+                default:
+                    std::cout << "Invalid piece code detected in validateMove" << std::endl;
+                    return nullptr;
+                    break;
+            };
+
+            bool check = false;
+
+            for (Move m: possibleMoves)
+            {
+                if (*move == m)
+                {
+                    return move;
+                };
+            };
+            
+            return nullptr;
+        }
+        else
+        {
+            return nullptr;
+        };
+    };
+};
+
+Move *Engine::validateMove(std::string moveString)
+{
+    Move refMove = _stringToMove(moveString);
+    return validateMove(&refMove);
 };
 
 Move Engine::_stringToMove(std::string moveString)

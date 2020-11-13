@@ -25,7 +25,7 @@ int main()
         {PieceCodes::bG, 3},
         {PieceCodes::bS, 2}
     };
-
+    
     UHPInterface inter(defaultConfig);
     inter.initTerminal();
 };

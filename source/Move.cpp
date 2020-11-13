@@ -23,6 +23,17 @@ Move::Move(std::string moveLabel)
     firstPiece = true;
 };
 
+bool Move::operator==(const Move &other)
+{
+    return (
+        from == other.from &&
+        to == other.to &&
+        code == other.code &&
+        direction == other.direction &&
+        newPiece == other.newPiece &&
+        firstPiece == other.firstPiece
+    );
+};
 
 std::string Move::toString()
 {

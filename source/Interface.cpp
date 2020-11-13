@@ -77,8 +77,16 @@ void UHPInterface::_play(std::string input)
             }
             else if (Utils::isMoveString(second))
             {
-                // check for validity of move in Board object
-                _game.makeMove(second);
+                Move *refMove = _game.validateMove(second);
+
+                if (refMove != nullptr)
+                {
+                     _game.makeMove(*refMove);
+                }
+                else
+                {
+                    std::cout << "Invalid move passed. Converted form: " << refMove->toString() << std::endl;
+                };
             }
             else
             {
@@ -212,12 +220,12 @@ void UHPInterface::_newGame(std::string input)
 
         for (std::string token: tokens)
         {
-        if (!Utils::isMoveString(token))
-        {
-            std::cout << "newgame aborted. " << token << " is not a valid MoveString" << std::endl;
-            check = false;
-            break;
-        };
+            if (!Utils::isMoveString(token))
+            {
+                std::cout << "newgame aborted. " << token << " is not a valid MoveString" << std::endl;
+                check = false;
+                break;
+            };
         };
 
         if (check)

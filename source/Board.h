@@ -10,9 +10,6 @@
 #include <set>
 
 
-class Engine; // forward declaration to enable Engine <-> Board Mutual Composition
-
-
 struct _OneHiveInfo
 // A structure used to store information relevant to the articulation vertex search used to enforce the one hive rule
 {

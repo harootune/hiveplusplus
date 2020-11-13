@@ -27,6 +27,9 @@ class Move
         Move(std::string moveLabel);
         Move(std::string moveLabel, std::string destLabel, int dir, bool isNew = false);
 
+        /* Operators */
+        bool operator==(const Move &other);
+
         /* Misc */
         // Produce a MoveString representing this move
         std::string toString();

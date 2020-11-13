@@ -61,6 +61,9 @@ class Engine
         std::string toString();
         // Reset the game to a beginning state
         void reset();
+        // Checks if a given move is legal in the current turn
+        Move *validateMove(Move *move);
+        Move *validateMove(std::string moveString);
         
         /* DEBUG */
         int score();
@@ -103,8 +106,6 @@ class Engine
         /* Misc */
         // Converts a move string to a Move object -- maybe move to utils?
         Move _stringToMove(std::string moveString);
-        // Checks if a given move is legal in the current turn
-        bool _validateMove(std::vector<std::string> move);
 };
 
 #endif
