@@ -16,6 +16,11 @@ namespace Utils
     // determines if a string is a MoveString as defined in the UHP
     bool isMoveString(std::string input);
     // convert a piece label to its corresponding piece code
+    bool isGameTypeString(std::string input);
+    bool isGameStateString(std::string input);
+    bool isMoveString(std::string input);
+    bool isTurnString(std::string input);
+    bool isGameString(std::string input);
     int labelToCode(std::string label);
     // concatenate a coordinate vector with a piece code (used in the ZobristHash)
     std::vector<int> concatCoords(std::vector<int> coords, int piece);

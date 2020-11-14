@@ -67,6 +67,53 @@ bool Utils::isMoveString(std::string input)
     return std::regex_match(input, pattern);
 };
 
+bool Utils::isGameTypeString(std::string input)
+{
+    std::regex pattern("(Custom)|(Base(\\+[MLP][MLP]?[MLP]?)?)");
+
+    return std::regex_match(input, pattern);
+};
+
+bool Utils::isGameStateString(std::string input)
+{
+    std::regex pattern("(NotStarted)|(Inprogress)|(Draw)|(WhiteWins)|(BlackWins)");
+
+    return std::regex_match(input, pattern);
+};
+
+bool Utils::isTurnString(std::string input)
+{
+    std::regex pattern ("(White|Black)\\[[0-9]\\+\\]");
+
+    return std::regex_match(input, pattern);
+};
+
+bool Utils::isGameString(std::string input)
+{
+    std::vector<std::string> tokens = tokenize(input, ';');
+
+    if (tokens.size() < 3) { return false; };
+
+    bool typeStringCheck = isGameTypeString(tokens[0]);
+    bool stateStringCheck = isGameStateString(tokens[1]);
+    bool turnStringCheck = isTurnString(tokens[2]);
+    bool moveStringCheck = true;
+
+    if (tokens.size() > 3)
+    {
+        for (std::string token: tokens)
+        {
+            if (!isMoveString(token))
+            {
+                moveStringCheck = false;
+                break;
+            };
+        };
+    };
+
+    return typeStringCheck && stateStringCheck && turnStringCheck && moveStringCheck;
+};
+
 int Utils::labelToCode(std::string label)
 {
   std::string prefix = label.substr(0, 2);
