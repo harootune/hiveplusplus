@@ -76,14 +76,14 @@ bool Utils::isGameTypeString(std::string input)
 
 bool Utils::isGameStateString(std::string input)
 {
-    std::regex pattern("(NotStarted)|(Inprogress)|(Draw)|(WhiteWins)|(BlackWins)");
+    std::regex pattern("(NotStarted)|(InProgress)|(Draw)|(WhiteWins)|(BlackWins)");
 
     return std::regex_match(input, pattern);
 };
 
 bool Utils::isTurnString(std::string input)
 {
-    std::regex pattern ("(White|Black)\\[[0-9]\\+\\]");
+    std::regex pattern ("(White|Black)\\[[0-9]+\\]");
 
     return std::regex_match(input, pattern);
 };
@@ -101,9 +101,10 @@ bool Utils::isGameString(std::string input)
 
     if (tokens.size() > 3)
     {
-        for (std::string token: tokens)
+        std::vector<std::string>::iterator tokenIt = tokens.begin() + 3;
+        for (tokenIt; tokenIt != tokens.end(); tokenIt++)
         {
-            if (!isMoveString(token))
+            if (!isMoveString(*tokenIt))
             {
                 moveStringCheck = false;
                 break;
