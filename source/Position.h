@@ -68,8 +68,8 @@ class Piece: public Position
     public:
         /* Constructors */
         Piece();
-        Piece(std::vector<int> coords);
-        Piece(std::vector<int> coords, int c, std::string l);
+        Piece(std::vector<int> &coords);
+        Piece(std::vector<int> &coords, int c, std::string l);
 
         /* Member Variables */
         // Code of the piece at this location

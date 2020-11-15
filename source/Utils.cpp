@@ -128,3 +128,61 @@ std::vector<int> Utils::concatCoords(std::vector<int> coords, int piece)
     
     return tempCoords;
 };
+
+PositionMove Utils::toPositionMove(LabelMove &labelMove, Board &board)
+{
+    PositionMove result;
+    Piece *fromTarget = board.find(labelMove.from);
+    Piece *toTarget = board.find(labelMove.to);
+
+    if (fromTarget == nullptr || toTarget == nullptr)
+    {
+        return result;
+    };
+
+    result.code = fromTarget->code;
+    result.from = fromTarget->getCoords();
+    result.to = board.top(toTarget->getNeighbor(labelMove.direction));
+    if (board.find(result.to) != nullptr)
+    {
+        result.to[3]++;
+    };
+
+    result.newPiece = labelMove.newPiece;
+    result.firstPiece = labelMove.firstPiece;
+
+    return result;    
+};
+
+LabelMove Utils::toLabelMove(PositionMove &positionMove, Board &board)
+{
+    LabelMove result;
+
+    Piece *fromTarget = board.find(positionMove.from);
+    
+    Piece *toTarget = nullptr;
+    Position destPosition {positionMove.to};
+    std::vector<std::vector<int>> neighbors = board.adjacencies(&destPosition);
+    if (!neighbors.empty())
+    {
+        toTarget = board.find(neighbors[0]);
+    };
+
+    if (fromTarget == nullptr || toTarget == nullptr)
+    {
+        return result;
+    }
+    else if (fromTarget->code != positionMove.code)
+    {
+        return result;
+    };
+
+    result.from = fromTarget->label;
+    result.to = toTarget->label;
+    result.code = positionMove.code;
+    result.direction = Position::findDirection(toTarget->getCoords(), positionMove.to);
+    result.newPiece = positionMove.newPiece;
+    result.firstPiece = positionMove.firstPiece;
+
+    return result;
+};

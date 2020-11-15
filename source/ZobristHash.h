@@ -39,16 +39,26 @@ class ZobristHash
 // A class tracking a given Hive game's current hash
 {
     public:
+        /* Member Variables */
+        unsigned long int hash;
+
         /* Constructors */
-        ZobristHash() {};
+        ZobristHash() { hash = 6543; };
         ZobristHash(std::map<int, int>);
-    
+
+        /* Hash Manipulators */
+        void invertPiece(std::vector<int> coordinates, int code);
+        void invertColor();
+        void changeDepth(int depth);
+        
     private:
         /* Member Variables */
         // Total number of pieces - used to determine maximum board radius
         int _numPieces;
         // The current PRNG bitstring
         unsigned long int _next;
+        int _depth;
+        unsigned long int _white;
         // The ZobristTable tracked by this Hash
         ZobristTable _bitTable;
         

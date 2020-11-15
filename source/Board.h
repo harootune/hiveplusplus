@@ -27,7 +27,7 @@ class Board
         // A series of Move objects allowing the Board to restore earlier piece arrangements
         // Note that these are not NECESSARILY the same move objects as used to make moves forward in time
         // Non-placement moves in particular require that we store a "reverse" move
-        std::vector<Move> _undoCache; // move back
+        std::vector<LabelMove> _undoCache; // move back
 
         /* Member Variables */
         // Counts for each piece code
@@ -59,11 +59,13 @@ class Board
         
         /* Piece Manipulation */
         // Make a move described with a Move object. If reversible = true, a reverse Move will be stored in the undocache
-        void update(Move move, bool reversible = true);
+        void update(LabelMove &move, bool reversible = true);
         // Remove a piece from the board
         void remove(std::string pieceLabel);
         // Undo the most recent Move
         void undoLast();
+        // Get the most recent move in the undoCache
+        LabelMove getLastUndo();
 
         /* Scoring -- should this be a composited object? */
         // checkmate scores
@@ -104,7 +106,7 @@ class Board
 
         /* Misc */
         // Store a reverse Move in the _undoCache
-        void _storeUndo(Move move);
+        void _storeUndo(LabelMove &move);
         // Recursive search for articulation vertices, used with getPinned
         void _pinSearch(std::vector<int> &parent, std::vector<int> &location, _OneHiveInfo *info);
         // Delete all dynamically allocated Piece objects to prevent memory leakage

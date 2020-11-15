@@ -120,7 +120,7 @@ Piece::Piece()
     _coords = {0, 0, 0, 0};
 };
 
-Piece::Piece(std::vector<int> coords)
+Piece::Piece(std::vector<int> &coords)
 {
     code = -1;
     label = "EMPTY";
@@ -128,7 +128,7 @@ Piece::Piece(std::vector<int> coords)
     _coords = coords;
 };
 
-Piece::Piece(std::vector<int> coords, int c, std::string l)
+Piece::Piece(std::vector<int> &coords, int c, std::string l)
 {
     code = c;
     label = l;

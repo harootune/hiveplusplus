@@ -32,6 +32,7 @@ Piece *Board::find(std::vector<int> coords)
     };
 };
 
+
 std::vector<int> Board::top(std::vector<int> coords)
 {
     std::vector<int> outerCoords;
@@ -111,7 +112,7 @@ std::vector<std::vector<int>> Board::adjacencies(Position *pos, bool empty)
     return existingNeighbors;
 };
 
-void Board::update(Move move, bool reversible)
+void Board::update(LabelMove &move, bool reversible)
 {
     int i;
     Piece *target;
@@ -127,16 +128,17 @@ void Board::update(Move move, bool reversible)
 
     if (!move.newPiece)
     {
-        if (!reversible) // debug
-        {
-            std::cout << "Candidate" << std::endl;
-        };
+        // if (!reversible) // debug
+        // {
+        //     std::cout << "Candidate" << std::endl;
+        // };
 
         std::vector<int> oldCoords;
 
         target = find(move.from);
         oldCoords = target->getCoords();
-        newCoords= top(find(move.to)->getNeighbor(move.direction));
+        newCoords = find(move.to)->getNeighbor(move.direction);
+        newCoords = top(newCoords);
         if (find(newCoords) != nullptr)
         {
             newCoords[3]++;
@@ -238,12 +240,11 @@ void Board::remove(std::string pieceLabel)
 
 void Board::undoLast()
 {
-    Move *undo = &_undoCache.back(); // DEBUG
+    LabelMove *undo = &_undoCache.back();
 
     // std::cout << engine->turn << " UNDO " <<  undo->toString() << std::endl; // DEBUG
 
     int code = Utils::labelToCode(undo->from);
-    int count = counts[code];
 
     if (undo->newPiece)
     {
@@ -254,9 +255,21 @@ void Board::undoLast()
         update(*undo, false); // is this dereference appropriate?
     };
 
-    int count2 = counts[code]; // DEBUG
+    // int count2 = counts[code]; // DEBUG
 
     _undoCache.pop_back();
+};
+
+LabelMove Board::getLastUndo()
+{
+    if (_undoCache.empty())
+    {
+        return LabelMove();
+    }
+    else
+    {
+        return _undoCache.back();
+    };
 };
 
 bool Board::empty()
@@ -315,7 +328,7 @@ std::string Board::nextLabel(int code)
     return label;
 };
 
-void Board::_storeUndo(Move move)
+void Board::_storeUndo(LabelMove &move)
 {
     if (move.newPiece)
     {
@@ -323,7 +336,7 @@ void Board::_storeUndo(Move move)
     }
     else
     {
-        Piece *target = find(move.from);
+        Piece *target = find(move.from); 
         Piece *oldNeighbor = nullptr;
 
         bool found = false;
@@ -335,7 +348,7 @@ void Board::_storeUndo(Move move)
             if (oldNeighbor != nullptr)
             {
                 int reverseDirection = (3 + i) % 6;
-                Move reverseMove(target->label, oldNeighbor->label, reverseDirection);
+                LabelMove reverseMove(target->label, oldNeighbor->label, reverseDirection);
                 _undoCache.push_back(reverseMove); // maybe a move
                 found = true;
                 break;

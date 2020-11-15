@@ -95,11 +95,12 @@ void UHPInterface::_play(std::string input)
                 }
                 else if (Utils::isMoveString(second))
                 {
-                    Move *refMove = _game.validateMove(second);
+                    LabelMove checkMove = _game.stringToMove(second);
+                    LabelMove *refMove = _game.validateMove(&checkMove);
 
                     if (refMove != nullptr)
                     {
-                        _game.makeMove(*refMove);
+                        _game.makeMove(checkMove);
                     }
                     else
                     {
@@ -141,7 +142,7 @@ void UHPInterface::_bestMove(std::string input)
                 std::cout << "note Arguments discarded. bestmove takes no arguments." << std::endl;
             };
 
-            Move recc = _game.recommendMove();
+            LabelMove recc = _game.recommendMove();
             std::cout << recc.toString() << std::endl;
         };
     }
@@ -206,7 +207,7 @@ void UHPInterface::_pass(std::string input)
         }
         else
         {
-            Move recc = _game.recommendMove();
+            LabelMove recc = _game.recommendMove();
             _game.makeMove(recc);
         };
         std::cout << _mode << ";" << _game.toString() << std::endl;
@@ -237,9 +238,9 @@ void UHPInterface::_validMoves(std::string input)
             else
             {
                 std::string repr = "";
-                std::vector<Move> moves = _game.genAllMoves();
+                std::vector<LabelMove> moves = _game.genAllMoves();
 
-                for (Move m: moves)
+                for (LabelMove m: moves)
                 {
                     repr += m.toString() + ";";
                 };
@@ -262,7 +263,9 @@ void UHPInterface::_newGame(std::string input)
     // This is going to cause a problem if someone provides an invalid game string
     // TODO improve safety
     std::vector<std::string> engineHistory = _game.history;  // this is to help with reversability, currently does nothing
-    
+    LabelMove checkMove;
+    LabelMove *refMove;
+
     if (input.size() > 8)
     {
         std::string cleanInput = Utils::strip(input.substr(8));
@@ -279,9 +282,12 @@ void UHPInterface::_newGame(std::string input)
                 std::vector<std::string>::iterator tokenIt = tokens.begin() + 3;
                 for (tokenIt; tokenIt != tokens.end() ; tokenIt++)
                 {
-                    if (_game.validateMove(*tokenIt))
+                    checkMove = _game.stringToMove(*tokenIt);
+                    refMove = _game.validateMove(&checkMove);
+
+                    if (refMove != nullptr)
                     {
-                        _game.makeMove(*tokenIt);
+                        _game.makeMove(checkMove);
                     }
                     else
                     {
@@ -302,7 +308,7 @@ void UHPInterface::_newGame(std::string input)
     }
     else
     {
-        _game = Engine(StandardPConfigs::base);
+        _initGame("Base");
     };
 
     if (_active)

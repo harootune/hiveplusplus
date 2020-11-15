@@ -2,6 +2,8 @@
 
 #ifndef _HIVEUTILS_
 #define _HIVEUTILS_
+#include "Board.h"
+#include "Move.h"
 #include <iostream>
 #include <vector>
 
@@ -24,6 +26,8 @@ namespace Utils
     int labelToCode(std::string label);
     // concatenate a coordinate vector with a piece code (used in the ZobristHash)
     std::vector<int> concatCoords(std::vector<int> coords, int piece);
+    PositionMove toPositionMove(LabelMove &labelMove, Board &board);
+    LabelMove toLabelMove(PositionMove &positionMove, Board &board);
 };
 
 #endif

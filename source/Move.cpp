@@ -2,7 +2,17 @@
 #include "Utils.h"
 #include "PieceInfo.h"
 
-Move::Move(std::string moveLabel, std::string destLabel, int dir, bool isNew)
+LabelMove::LabelMove()
+{
+    from = "NULL";
+    to = "NULL";
+    code = -5;
+    direction = -5;
+    newPiece = false;
+    firstPiece = false;
+};
+
+LabelMove::LabelMove(std::string moveLabel, std::string destLabel, int dir, bool isNew)
 {
     from = moveLabel;
     to = destLabel;
@@ -12,7 +22,7 @@ Move::Move(std::string moveLabel, std::string destLabel, int dir, bool isNew)
     firstPiece = false;
 };
 
-Move::Move(std::string moveLabel)
+LabelMove::LabelMove(std::string moveLabel)
 // specifically for a first move
 {
     from = moveLabel;
@@ -23,7 +33,7 @@ Move::Move(std::string moveLabel)
     firstPiece = true;
 };
 
-bool Move::operator==(const Move &other)
+bool LabelMove::operator==(const LabelMove &other)
 {
     return (
         from == other.from &&
@@ -35,7 +45,13 @@ bool Move::operator==(const Move &other)
     );
 };
 
-std::string Move::toString()
+bool LabelMove::operator!=(const LabelMove &other)
+{
+    bool check = this->operator==(other);
+    return !check;
+};
+
+std::string LabelMove::toString()
 {
     if (from == to)
     {
@@ -78,3 +94,47 @@ std::string Move::toString()
         return repr;
     };
 };
+
+PositionMove::PositionMove()
+{
+    code = -5;
+    from = {-1, -1, -1, -1};
+    to = {-1, -1, -1, -1};
+    newPiece = false;
+    firstPiece = false; 
+};
+
+PositionMove::PositionMove(int c)
+{
+    code = c;
+    from = {0, 0, 0, 0};
+    to = {0, 0, 0, 0};
+    newPiece = true;
+    firstPiece = true;
+};
+
+PositionMove::PositionMove(int c, std::vector<int> fromCoords, std::vector<int> toCoords, bool newP)
+{
+    code = c;
+    from = fromCoords;
+    to = toCoords;
+    newPiece = newP;
+    firstPiece = false;
+};
+
+bool PositionMove::operator==(const PositionMove &other)
+{
+    return code == other.code &&
+            from == other.from &&
+            to == other.to &&
+            newPiece == other.newPiece &&
+            firstPiece == other.firstPiece;
+};
+
+bool PositionMove::operator!=(const PositionMove &other)
+{
+    return !operator==(other);
+};
+
+
+

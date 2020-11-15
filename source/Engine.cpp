@@ -12,51 +12,73 @@ Engine::Engine(std::map<int, int> pieceConfig)
     white = true;   
     gamestate = GameStates::NotStarted;
     _pieceConfig = pieceConfig;
+    _hash = ZobristHash(pieceConfig);
+    _hash.changeDepth(_defaultDepth);
+    _hash.invertColor(); // sets to white
 };
 
 
-void Engine::makeMove(Move move)
+void Engine::makeMove(LabelMove &move)
 {
     // DEBUG
-    std::cout << turn << " " << toCoordString() << std::endl;
-    std::cout << "COORDS MAP BEFORE MOVE " << _board.coordsMapToString() << std::endl;
+    // std::cout << turn << " " << toCoordString() << std::endl;
+    // std::cout << "COORDS MAP BEFORE MOVE " << _board.coordsMapToString() << std::endl;
+
+    if (!move.newPiece)
+    {
+        _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // before move
+    };
+    
 
     history.push_back(move.toString());
     _board.update(move);
     gamestate = _board.checkGameState();
     turn++;
     white = !white;
+    _hash.invertColor();
+
+    _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // after move
 
     // DEBUG
-    std::cout << turn << " " << move.toString() << std::endl;
-    std::cout << "COORDS MAP AFTER MOVE " << _board.coordsMapToString() << std::endl;
+    // std::cout << turn << " " << move.toString() << std::endl;
+    // std::cout << "COORDS MAP AFTER MOVE " << _board.coordsMapToString() << std::endl;
 };
 
 
 void Engine::makeMove(std::string moveString)
 {
-    makeMove(_stringToMove(moveString));
+    LabelMove tempMove = stringToMove(moveString);
+    makeMove(tempMove);
 };
 
 
 void Engine::undoLast()
 {
     // DEBUG
-    std::cout << turn << " UNDO " << toCoordString() << std::endl;
-    std::cout << "COORDS MAP BEFORE UNDO " << _board.coordsMapToString() << std::endl;
-    
+    // std::cout << turn << " UNDO " << toCoordString() << std::endl;
+    // std::cout << "COORDS MAP BEFORE UNDO " << _board.coordsMapToString() << std::endl;
+    LabelMove undo = _board.getLastUndo();
+
+    _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+
     history.pop_back();
     _board.undoLast();
     gamestate = _board.checkGameState();
     turn--;
     white = !white;
+    _hash.invertColor();
+
+    if (!undo.newPiece)
+    {
+        _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+    };
 
     // DEBUG
-    std::cout << "COORDS MAP AFTER UNDO " << _board.coordsMapToString() << std::endl;
-    if (_board._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE AFTER UNDO" << std::endl;;
-    };
+    // std::cout << "COORDS MAP AFTER UNDO " << _board.coordsMapToString() << std::endl;
+    // if (_board._undoCache.size() != turn)
+    // {
+    //     std::cout << "FAILURE AFTER UNDO" << std::endl;;
+    // };
 
 };
 
@@ -67,7 +89,7 @@ int Engine::score()
 };
 
 
-Move *Engine::validateMove(Move *move)
+LabelMove *Engine::validateMove(LabelMove *move)
 {
     Piece *onBoard = _board.find(move->from);
 
@@ -95,9 +117,9 @@ Move *Engine::validateMove(Move *move)
         };
 
         // check to see if this is a valid placement move
-        std::vector<Move> placements = _genPlacementMoves();
+        std::vector<LabelMove> placements = _genPlacementMoves();
 
-        for (Move m: placements)
+        for (LabelMove m: placements)
         {
             if (*move == m)
             {
@@ -111,7 +133,7 @@ Move *Engine::validateMove(Move *move)
     {
         if (onBoard != nullptr)
         {
-            std::vector<Move> possibleMoves;
+            std::vector<LabelMove> possibleMoves;
             switch (move->code % 5)
             {
                 case PieceCodes::wQ:
@@ -137,7 +159,7 @@ Move *Engine::validateMove(Move *move)
 
             bool check = false;
 
-            for (Move m: possibleMoves)
+            for (LabelMove m: possibleMoves)
             {
                 if (*move == m)
                 {
@@ -154,13 +176,7 @@ Move *Engine::validateMove(Move *move)
     };
 };
 
-Move *Engine::validateMove(std::string moveString)
-{
-    Move refMove = _stringToMove(moveString);
-    return validateMove(&refMove);
-};
-
-Move Engine::_stringToMove(std::string moveString)
+LabelMove Engine::stringToMove(std::string moveString)
 {
     // maybe regex check to start?s
 
@@ -171,14 +187,14 @@ Move Engine::_stringToMove(std::string moveString)
     {  
         // throw some error - this should never occur unless makeMove is called by something without a regex check
         std::cout << "Empty movestring detected in Board::_stringToMove" << std::endl;
-        return Move();
+        return LabelMove();
     }
     else
     {
         // this is a first move
         if (components.size() == 1)
         {
-            return Move(components[0]);
+            return LabelMove(components[0]);
         }
         // this is a normal move
         else
@@ -236,15 +252,15 @@ Move Engine::_stringToMove(std::string moveString)
             };
             
             destination = Utils::strip(destination);
-            return Move(components[0], destination, direction, newPiece);
+            return LabelMove(components[0], destination, direction, newPiece);
         };
     };
 };
 
-std::vector<Move> Engine::_genPlacementMoves()
+std::vector<LabelMove> Engine::_genPlacementMoves()
 {
     std::map<int, int>::iterator configIt;
-    std::vector<Move> moves;
+    std::vector<LabelMove> moves;
 
     if (turn == 0)
     {
@@ -252,7 +268,7 @@ std::vector<Move> Engine::_genPlacementMoves()
         {
             if (PieceCodes::wQ < configIt->first && configIt->first < PieceCodes::bQ && configIt->second > 0) // no queen moves on first turn
             {
-                moves.push_back(Move(_board.nextLabel(configIt->first)));
+                moves.push_back(LabelMove(_board.nextLabel(configIt->first)));
             };
         };
     }
@@ -270,7 +286,7 @@ std::vector<Move> Engine::_genPlacementMoves()
             {
                 if (configIt->first > PieceCodes::bQ && configIt->second > 0) // same queen restriction
                 {
-                    moves.push_back(Move(_board.nextLabel(configIt->first), startPiece->label, i, true));
+                    moves.push_back(LabelMove(_board.nextLabel(configIt->first), startPiece->label, i, true));
                 };
             };
         };
@@ -353,8 +369,12 @@ std::vector<Move> Engine::_genPlacementMoves()
                                         {
                                             queenCheck = true;
                                         };
+
+                                        if (queenCheck)
+                                        {
                                         // store a corresponding move
-                                        moves.push_back(Move(_board.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
+                                            moves.push_back(LabelMove(_board.nextLabel(configIt->first), (*pieceIt)->label, direction, true));
+                                        };
                                     };
                                 };
                             };
@@ -370,7 +390,7 @@ std::vector<Move> Engine::_genPlacementMoves()
 
 
 void Engine::_moveSearch(std::string label, int code, Position *current, 
-                        std::vector<Move> &moves, std::set<std::vector<int>> &seen, int depth)
+                        std::vector<LabelMove> &moves, std::set<std::vector<int>> &seen, int depth)
 {
     if (depth > 0 || code % 5 == 1)
     {
@@ -474,12 +494,12 @@ void Engine::_moveSearch(std::string label, int code, Position *current,
                             {
                                 if (depth == 1)
                                 {
-                                    moves.push_back(Move(label, nextReference->label, direction));
+                                    moves.push_back(LabelMove(label, nextReference->label, direction));
                                 };
                             }
                             else
                             {
-                                moves.push_back(Move(label, nextReference->label, direction));
+                                moves.push_back(LabelMove(label, nextReference->label, direction));
                             };
                             
                             // note that we've now seen this location
@@ -496,7 +516,7 @@ void Engine::_moveSearch(std::string label, int code, Position *current,
 };
 
 
-void Engine::_hopperSearch(std::string label, int direction, Position *current, std::vector<Move> &moves)
+void Engine::_hopperSearch(std::string label, int direction, Position *current, std::vector<LabelMove> &moves)
 {
     // if we're currently over a piece, continue searching
     if (_board.find(current->getCoords()))
@@ -510,14 +530,14 @@ void Engine::_hopperSearch(std::string label, int direction, Position *current, 
         std::vector<std::vector<int>> adjacencies = _board.adjacencies(current);
         Piece *ref = _board.find(adjacencies[0]);
         int refDir = Position::findDirection(ref->getCoords(), current->getCoords());
-        moves.push_back(Move(label, ref->label, refDir));
+        moves.push_back(LabelMove(label, ref->label, refDir));
     };
 };
 
 
-std::vector<Move> Engine::_genQueenMoves(std::string label)
+std::vector<LabelMove> Engine::_genQueenMoves(std::string label)
 {
-    std::vector<Move> moves;
+    std::vector<LabelMove> moves;
     std::set<std::vector<int>> seen;
     Piece *current = _board.find(label);
     _moveSearch(label, current->code, current, moves, seen, 1);
@@ -525,9 +545,9 @@ std::vector<Move> Engine::_genQueenMoves(std::string label)
 };
 
 
-std::vector<Move> Engine::_genAntMoves(std::string label)
+std::vector<LabelMove> Engine::_genAntMoves(std::string label)
 {
-    std::vector<Move> moves;
+    std::vector<LabelMove> moves;
     std::set<std::vector<int>> seen;
     Piece *current = _board.find(label);
     _moveSearch(label, current->code, current, moves, seen, -1);
@@ -535,9 +555,9 @@ std::vector<Move> Engine::_genAntMoves(std::string label)
 };
 
 
-std::vector<Move> Engine::_genBeetleMoves(std::string label)
+std::vector<LabelMove> Engine::_genBeetleMoves(std::string label)
 {
-    std::vector<Move> moves;
+    std::vector<LabelMove> moves;
     std::set<std::vector<int>> seen;
     Piece *current = _board.find(label);
     _moveSearch(label, current->code, current, moves, seen, 1);
@@ -545,9 +565,9 @@ std::vector<Move> Engine::_genBeetleMoves(std::string label)
 };
 
 
-std::vector<Move> Engine::_genHopperMoves(std::string label)
+std::vector<LabelMove> Engine::_genHopperMoves(std::string label)
 {
-    std::vector<Move> moves;
+    std::vector<LabelMove> moves;
     int direction;
     Piece *current = _board.find(label);
     std::vector<std::vector<int>> adjacencies = _board.adjacencies(current);
@@ -564,9 +584,9 @@ std::vector<Move> Engine::_genHopperMoves(std::string label)
 };
 
 
-std::vector<Move> Engine::_genSpiderMoves(std::string label)
+std::vector<LabelMove> Engine::_genSpiderMoves(std::string label)
 {
-    std::vector<Move> moves;
+    std::vector<LabelMove> moves;
     std::set<std::vector<int>> seen;
     Piece *current = _board.find(label);
     _moveSearch(label, current->code, current, moves, seen, 3);
@@ -574,12 +594,12 @@ std::vector<Move> Engine::_genSpiderMoves(std::string label)
 };
 
 
-std::vector<Move> Engine::genAllMoves()
+std::vector<LabelMove> Engine::genAllMoves()
 {
-    std::vector<Move> moves;
+    std::vector<LabelMove> moves;
     std::vector<Piece*> genTargets;
     std::vector<Piece*>::iterator targetIt;
-    std::vector<Move> genResults;
+    std::vector<LabelMove> genResults;
 
     // get placement moves
     genResults = _genPlacementMoves();
@@ -633,45 +653,46 @@ std::vector<Move> Engine::genAllMoves()
     return moves;
 };
 
-Move Engine::recommendMove()
+LabelMove Engine::recommendMove()
 {
-    Move bestMove;
+    LabelMove bestMove;
+    std::vector<PositionMove> killerMoves;
     int alpha = -1000000;
     int beta = 1000000;
+    
 
     for (int i = 1; i <= 3; i++)
     {
-        bestMove = _negaMax(alpha, beta, i);
+        killerMoves.push_back(_positionNonMove);
+        bestMove = _negaMax(alpha, beta, i, killerMoves);
     };
+
+    _hash.changeDepth(_defaultDepth);
 
     return bestMove;
 };
 
-Move Engine::_negaMax(int alpha, int beta, int depth)
+LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves)
 {
-    Move best;
+    LabelMove best;
     int val;
     int bestVal = -1000000;
-    std::vector<Move> moves = genAllMoves();
+    std::vector<LabelMove> moves = genAllMoves();
 
-    if (_board._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE BEFORE INIT" << std::endl;
-    };
+    // if (_board._undoCache.size() != turn)
+    // {
+    //     std::cout << "FAILURE BEFORE INIT" << std::endl;
+    // };
 
-    for (Move m: moves)
+    _hash.changeDepth(depth);
+
+    for (LabelMove m: moves)
     {
         makeMove(m);
 
-        val = -_negaMaxSearch(-beta, -alpha, depth-1);
+        val = -_negaMaxSearch(-beta, -alpha, depth-1, killerMoves);
         if (val > bestVal)
         {
-            // DEBUG
-            if (depth == 3)
-            {
-                std::cout << "Foo";
-            };
-
             best = m;
             bestVal = val;
         };
@@ -679,15 +700,17 @@ Move Engine::_negaMax(int alpha, int beta, int depth)
         undoLast();
     };
 
-    if (_board._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE AFTER INIT" << std::endl;
-    };
+    _hash.changeDepth(depth);
+
+    // if (_board._undoCache.size() != turn)
+    // {
+    //     std::cout << "FAILURE AFTER INIT" << std::endl;
+    // };
 
     return best;
 };
 
-int Engine::_negaMaxSearch(int alpha, int beta, int depth)
+int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves)
 {
     // DEBUG
     if (_board._undoCache.size() != turn)
@@ -700,35 +723,49 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth)
         return score();    
     };
 
-    int newAlpha = alpha;
+    int newAlpha = alpha; // probably unnecessary
     int val = -1000000;
-    std::vector<Move> moves = genAllMoves();
+    std::vector<LabelMove> moves = genAllMoves();
+    std::vector<LabelMove>::reverse_iterator moveIt;
 
-    for (Move m: moves)
+    _hash.changeDepth(depth);
+
+    if (killerMoves[depth] != _positionNonMove)
     {
-        makeMove(m);
+        LabelMove killer = Utils::toLabelMove(killerMoves[depth], _board);
+        LabelMove *killerRef = validateMove(&killer);
+        if (killerRef != nullptr)
+        {
+            moves.push_back(killer);
+        };
+    };
 
-        val = std::max(val, -_negaMaxSearch(-beta, -newAlpha, depth-1));
+    for (moveIt = moves.rbegin(); moveIt != moves.rend(); moveIt++)
+    {
+        makeMove(*moveIt);
+
+        val = std::max(val, -_negaMaxSearch(-beta, -newAlpha, depth-1, killerMoves));
         newAlpha = std::max(newAlpha, val);
         
         undoLast();
 
         if (newAlpha >= beta)
         {
-            std::cout << "FAILED HIGH" << std::endl;  
-            // failing high - we will want to do more with this
+            // std::cout << "FAILED HIGH" << std::endl DEBUG  
+            killerMoves[depth] = Utils::toPositionMove(*moveIt, _board);
             break;  
         };
     };
 
+    _hash.changeDepth(depth);
+
     // DEBUG
-    if (_board._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE AFTER SEARCH" << std::endl;
-    };
+    // if (_board._undoCache.size() != turn)
+    // {
+    //     std::cout << "FAILURE AFTER SEARCH" << std::endl;
+    // };
 
     return val;
-
 };
 
 std::string Engine::toString()

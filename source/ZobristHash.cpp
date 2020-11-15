@@ -51,6 +51,8 @@ bool ZobristTable::check(std::vector<int> coords, int piece)
 ZobristHash::ZobristHash(std::map<int, int> pieceConfig)
 {
     std::map<int, int>::iterator pieceIt;
+
+    hash = 6543;
     
     _numPieces = 0;
     for (pieceIt = pieceConfig.begin(); pieceIt != pieceConfig.end(); pieceIt++)
@@ -59,8 +61,36 @@ ZobristHash::ZobristHash(std::map<int, int> pieceConfig)
     };
 
     _next = 0;
+    _depth = 0;
+    _white = _getNextRand();
 
     _initTable(pieceConfig);
+};
+
+void ZobristHash::invertPiece(std::vector<int> coordinates, int code)
+{
+    unsigned long int targetHash = _bitTable.find(coordinates, code);
+    if (targetHash != 0)
+    {
+        hash ^= targetHash;
+    }
+    else
+    {
+        // DEBUG - final version should throw an error
+        std::cout << "err Zobrist hash miss." << std::endl;
+    };
+};
+
+void ZobristHash::invertColor()
+{
+    hash ^= _white;
+};
+
+void ZobristHash::changeDepth(int depth)
+{
+    hash ^= _depth;
+    hash ^= depth;
+    _depth = depth;
 };
 
 void ZobristHash::_initTable(std::map<int, int> pieceConfig)
