@@ -687,6 +687,7 @@ LabelMove Engine::recommendMove()
 
 LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves)
 {
+    PositionMove *tableMove;
     LabelMove best;
     int val;
     int bestVal = -1000000;
@@ -698,6 +699,13 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
     // };
 
     _hash.changeDepth(depth);
+
+    tableMove = _transTable.find(_hash.hash);
+    if (tableMove != nullptr)
+    {
+        std::cout << "TABLE HIT" << std::endl;
+        return Utils::toLabelMove(*tableMove, _board);
+    };
 
     for (LabelMove m: moves)
     {
@@ -713,7 +721,12 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
         undoLast();
     };
 
+    PositionMove positionBest = Utils::toPositionMove(best, _board);
+    positionBest.score = bestVal; // is score necessary to track?
+
     _hash.changeDepth(depth);
+
+    _transTable.insert(_hash.hash, positionBest);
 
     // if (_board._undoCache.size() != turn)
     // {
@@ -736,12 +749,23 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
         return score();    
     };
 
+    PositionMove *tableMove;
     int newAlpha = alpha; // probably unnecessary
     int val = -1000000;
+    int curVal;
+    bool failHigh = false;
+    LabelMove best;
     std::vector<LabelMove> moves = genAllMoves();
     std::vector<LabelMove>::reverse_iterator moveIt;
 
     _hash.changeDepth(depth);
+
+    tableMove = _transTable.find(_hash.hash);
+    if (tableMove != nullptr)
+    {
+        std::cout << "TABLE HIT" << std::endl;
+        return tableMove->score;
+    };
 
     if (killerMoves[depth] != _positionNonMove)
     {
@@ -756,8 +780,14 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
     for (moveIt = moves.rbegin(); moveIt != moves.rend(); moveIt++)
     {
         makeMove(*moveIt);
+        curVal = -_negaMaxSearch(-beta, -newAlpha, depth-1, killerMoves);
+        
+        if (val < curVal)
+        {
+            val = curVal;
+            best = *moveIt;
+        };
 
-        val = std::max(val, -_negaMaxSearch(-beta, -newAlpha, depth-1, killerMoves));
         newAlpha = std::max(newAlpha, val);
         
         undoLast();
@@ -765,12 +795,21 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
         if (newAlpha >= beta)
         {
             std::cout << "FAILED HIGH" << std::endl; // DEBUG
+            failHigh = true;
             killerMoves[depth] = Utils::toPositionMove(*moveIt, _board);
             break;  
         };
     };
 
     _hash.changeDepth(depth);
+
+    if (!failHigh)
+    {
+        PositionMove positionBest = Utils::toPositionMove(best, _board);
+        positionBest.score = val;
+
+        _transTable.insert(_hash.hash, positionBest);
+    };
 
     // DEBUG
     // if (_board._undoCache.size() != turn)

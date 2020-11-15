@@ -97,6 +97,7 @@ std::string LabelMove::toString()
 
 PositionMove::PositionMove()
 {
+    score = 0;
     code = -5;
     from = {-1, -1, -1, -1};
     to = {-1, -1, -1, -1};
@@ -106,6 +107,7 @@ PositionMove::PositionMove()
 
 PositionMove::PositionMove(int c)
 {
+    score = 0;
     code = c;
     from = {0, 0, 0, 0};
     to = {0, 0, 0, 0};
@@ -115,6 +117,7 @@ PositionMove::PositionMove(int c)
 
 PositionMove::PositionMove(int c, std::vector<int> fromCoords, std::vector<int> toCoords, bool newP)
 {
+    score = 0;
     code = c;
     from = fromCoords;
     to = toCoords;
@@ -122,7 +125,7 @@ PositionMove::PositionMove(int c, std::vector<int> fromCoords, std::vector<int> 
     firstPiece = false;
 };
 
-bool PositionMove::operator==(const PositionMove &other)
+bool PositionMove::operator==(const PositionMove &other) // does not compare scores
 {
     return code == other.code &&
             from == other.from &&

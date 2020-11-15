@@ -4,6 +4,7 @@
 #define _HIVEBOARD_
 #include "Board.h"
 #include "ZobristHash.h"
+#include "TransTable.h"
 #include "Position.h"
 #include "Move.h"
 #include <map>
@@ -76,6 +77,8 @@ class Engine
         std::map<int, int> _pieceConfig;
         // Tracks the current Zobrist Hash for this engine
         ZobristHash _hash;
+        // Transposition table
+        TranspositionTable _transTable;
         // Tracks the location of pieces and allows for easy traversal between them
         Board _board;
                             

@@ -40,6 +40,7 @@ class LabelMove
 class PositionMove
 {
     public:
+        int score;
         int code;
         std::vector<int> from;
         std::vector<int> to;
