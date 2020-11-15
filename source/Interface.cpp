@@ -104,12 +104,12 @@ void UHPInterface::_play(std::string input)
                     }
                     else
                     {
-                        std::cout << "Invalid move passed. Converted form: " << refMove->toString() << std::endl;
+                        std::cout << "err Invalid move passed. Converted form: " << checkMove.toString() << std::endl;
                     };
                 }
                 else
                 {
-                    std::cout << "Argument not recognized. Usage: play [MoveString/pass]" << std::endl;
+                    std::cout << "err Argument not recognized. Usage: play [MoveString/pass]" << std::endl;
                 };
             };
         };

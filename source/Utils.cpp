@@ -131,58 +131,95 @@ std::vector<int> Utils::concatCoords(std::vector<int> coords, int piece)
 
 PositionMove Utils::toPositionMove(LabelMove &labelMove, Board &board)
 {
-    PositionMove result;
-    Piece *fromTarget = board.find(labelMove.from);
-    Piece *toTarget = board.find(labelMove.to);
+    Piece *toTarget;
+    std::vector<int> fromCoords;
 
-    if (fromTarget == nullptr || toTarget == nullptr)
+    if (labelMove.newPiece)
     {
-        return result;
+        if (labelMove.firstPiece)
+        {
+            return PositionMove(labelMove.code);
+        }
+        else
+        {
+            fromCoords = {-1, -1, -1, -1};
+        };
+    }
+    else
+    {
+        Piece *fromTarget = board.find(labelMove.from);
+        
+        if (fromTarget == nullptr)
+        {
+            return PositionMove();
+        }
+        else
+        {
+            fromCoords = fromTarget->getCoords();
+        };
     };
 
-    result.code = fromTarget->code;
-    result.from = fromTarget->getCoords();
-    result.to = board.top(toTarget->getNeighbor(labelMove.direction));
-    if (board.find(result.to) != nullptr)
+    toTarget = board.find(labelMove.to);
+
+    if (toTarget == nullptr)
     {
-        result.to[3]++;
+        return PositionMove();
     };
 
-    result.newPiece = labelMove.newPiece;
-    result.firstPiece = labelMove.firstPiece;
+    std::vector<int> destCoords = board.top(toTarget->getNeighbor(labelMove.direction));
+    if (board.find(destCoords) != nullptr)
+    {
+        destCoords[3]++;
+    };
 
-    return result;    
+    return PositionMove(labelMove.code, fromCoords, destCoords, labelMove.newPiece);  
 };
 
 LabelMove Utils::toLabelMove(PositionMove &positionMove, Board &board)
 {
-    LabelMove result;
+    std::string label;
+    int direction;
+    Piece *toTarget;
+    Position destPosition;
+    std::vector<std::vector<int>> neighbors;
 
-    Piece *fromTarget = board.find(positionMove.from);
-    
-    Piece *toTarget = nullptr;
-    Position destPosition {positionMove.to};
-    std::vector<std::vector<int>> neighbors = board.adjacencies(&destPosition);
-    if (!neighbors.empty())
+    if (positionMove.newPiece)
     {
-        toTarget = board.find(neighbors[0]);
-    };
-
-    if (fromTarget == nullptr || toTarget == nullptr)
-    {
-        return result;
+        if (positionMove.firstPiece)
+        {
+            return LabelMove(board.nextLabel(positionMove.code));
+        }
+        else
+        {
+            label = board.nextLabel(positionMove.code);
+        };
     }
-    else if (fromTarget->code != positionMove.code)
+    else
     {
-        return result;
+        Piece *fromTarget = board.find(positionMove.from);
+        if (fromTarget == nullptr)
+        {
+            return LabelMove();
+        };
+
+        label = fromTarget->label;
     };
 
-    result.from = fromTarget->label;
-    result.to = toTarget->label;
-    result.code = positionMove.code;
-    result.direction = Position::findDirection(toTarget->getCoords(), positionMove.to);
-    result.newPiece = positionMove.newPiece;
-    result.firstPiece = positionMove.firstPiece;
+    if (board.find(positionMove.to) != nullptr) // is this check appropriate?
+    {
+        return LabelMove();
+    };
 
-    return result;
+    destPosition = Position(positionMove.to);
+    neighbors = board.adjacencies(&destPosition);
+
+    if (neighbors.empty())
+    {
+        return LabelMove();
+    };
+
+    toTarget = board.find(neighbors[0]);
+    direction = Position::findDirection(toTarget->getCoords(), destPosition.getCoords());
+
+    return LabelMove(label, toTarget->label, direction, positionMove.newPiece);
 };

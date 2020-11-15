@@ -93,6 +93,12 @@ LabelMove *Engine::validateMove(LabelMove *move)
 {
     Piece *onBoard = _board.find(move->from);
 
+    if ((!white && move->code < PieceCodes::bQ) ||
+        (white && move->code >= PieceCodes::bQ))
+    {
+        return nullptr;
+    };
+
     //Is this asking us to place a piece which is already on the board?
     if (move->newPiece)
     {
@@ -117,11 +123,15 @@ LabelMove *Engine::validateMove(LabelMove *move)
         };
 
         // check to see if this is a valid placement move
+        PositionMove check;
+        PositionMove candidate = Utils::toPositionMove(*move, _board);
         std::vector<LabelMove> placements = _genPlacementMoves();
 
         for (LabelMove m: placements)
         {
-            if (*move == m)
+            check = Utils::toPositionMove(m, _board);
+
+            if (check == candidate)
             {
                 return move;
             };
@@ -157,11 +167,14 @@ LabelMove *Engine::validateMove(LabelMove *move)
                     break;
             };
 
-            bool check = false;
+            PositionMove check;
+            PositionMove candidate = Utils::toPositionMove(*move, _board);
 
             for (LabelMove m: possibleMoves)
             {
-                if (*move == m)
+                check = Utils::toPositionMove(m, _board);
+
+                if (check == candidate)
                 {
                     return move;
                 };
@@ -751,7 +764,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
 
         if (newAlpha >= beta)
         {
-            // std::cout << "FAILED HIGH" << std::endl DEBUG  
+            std::cout << "FAILED HIGH" << std::endl; // DEBUG
             killerMoves[depth] = Utils::toPositionMove(*moveIt, _board);
             break;  
         };
