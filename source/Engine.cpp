@@ -20,10 +20,6 @@ Engine::Engine(std::map<int, int> pieceConfig)
 
 void Engine::makeMove(LabelMove &move)
 {
-    // DEBUG
-    // std::cout << turn << " " << toCoordString() << std::endl;
-    // std::cout << "COORDS MAP BEFORE MOVE " << _board.coordsMapToString() << std::endl;
-
     if (!move.newPiece)
     {
         _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // before move
@@ -38,10 +34,6 @@ void Engine::makeMove(LabelMove &move)
     _hash.invertColor();
 
     _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // after move
-
-    // DEBUG
-    // std::cout << turn << " " << move.toString() << std::endl;
-    // std::cout << "COORDS MAP AFTER MOVE " << _board.coordsMapToString() << std::endl;
 };
 
 
@@ -54,9 +46,6 @@ void Engine::makeMove(std::string moveString)
 
 void Engine::undoLast()
 {
-    // DEBUG
-    // std::cout << turn << " UNDO " << toCoordString() << std::endl;
-    // std::cout << "COORDS MAP BEFORE UNDO " << _board.coordsMapToString() << std::endl;
     LabelMove undo = _board.getLastUndo();
 
     _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
@@ -72,14 +61,6 @@ void Engine::undoLast()
     {
         _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
     };
-
-    // DEBUG
-    // std::cout << "COORDS MAP AFTER UNDO " << _board.coordsMapToString() << std::endl;
-    // if (_board._undoCache.size() != turn)
-    // {
-    //     std::cout << "FAILURE AFTER UNDO" << std::endl;;
-    // };
-
 };
 
 
@@ -703,7 +684,7 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
     tableMove = _transTable.find(_hash.hash);
     if (tableMove != nullptr)
     {
-        std::cout << "TABLE HIT" << std::endl; // DEBUG
+        // std::cout << "TABLE HIT" << std::endl; // DEBUG
         return Utils::toLabelMove(*tableMove, _board);
     };
 
@@ -749,7 +730,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
     tableMove = _transTable.find(_hash.hash);
     if (tableMove != nullptr)
     {
-        std::cout << "TABLE HIT" << std::endl;
+        // std::cout << "TABLE HIT" << std::endl; DEBUG
         return tableMove->score;
     };
 
@@ -780,7 +761,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
 
         if (alpha >= beta)
         {
-            std::cout << "FAILED HIGH" << std::endl; // DEBUG
+            // std::cout << "FAILED HIGH" << std::endl; // DEBUG
             failHigh = true;
             killerMoves[depth] = Utils::toPositionMove(*moveIt, _board);
             break;  
