@@ -46,7 +46,7 @@ class Position
         static int findDirection(const std::vector<int> &from, const std::vector<int> &to);
 
         /* Destructor */
-        ~Position() {};
+        virtual ~Position() {};
 
     protected:
         /* Member Variables */
@@ -80,7 +80,7 @@ class Piece: public Position
         bool isTopped;
         // Whether or not the piece is white
         bool white;
-        
+
         /* Destructor */
         ~Piece() {};
 };

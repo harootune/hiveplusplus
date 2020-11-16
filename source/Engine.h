@@ -2,11 +2,11 @@
 
 #ifndef _HIVEBOARD_
 #define _HIVEBOARD_
-#include "Board.h"
-#include "ZobristHash.h"
-#include "TransTable.h"
-#include "Position.h"
-#include "Move.h"
+#include <Board.h>
+#include <ZobristHash.h>
+#include <TransTable.h>
+#include <Position.h>
+#include <Move.h>
 #include <map>
 #include <vector>
 #include <string>

@@ -2,7 +2,7 @@
 
 #ifndef _TRANSTABLE_
 #define _TRANSTABLE_
-#include "Move.h"
+#include <Move.h>
 #include <map>
 
 class TranspositionTable

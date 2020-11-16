@@ -2,8 +2,8 @@
 
 #ifndef _PIECETABLE_
 #define _PIECETABLE_
-#include "Position.h"
-#include "Move.h"
+#include <Position.h>
+#include <Move.h>
 #include <vector>
 #include <map>
 #include <stack>

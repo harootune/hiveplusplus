@@ -1,6 +1,6 @@
-#include "Board.h"
-#include "PieceInfo.h"
-#include "Utils.h"
+#include <Board.h>
+#include <PieceInfo.h>
+#include <Utils.h>
 #include <stdexcept>
 #include <cmath>
 
@@ -44,7 +44,7 @@ std::vector<int> Board::top(std::vector<int> coords)
         if (!inner.empty())
         {
             std::map<int, Piece*>::reverse_iterator topPiece = inner.rbegin();
-            for (topPiece; topPiece != inner.rend(); topPiece++)
+            for (; topPiece != inner.rend(); topPiece++)
             {
                 if (topPiece->second != nullptr)
                 {
@@ -114,7 +114,6 @@ std::vector<std::vector<int>> Board::adjacencies(Position *pos, bool empty)
 
 void Board::update(LabelMove &move, bool reversible)
 {
-    int i;
     Piece *target;
     Piece *underPiece;
     std::vector<int> outer;
@@ -243,8 +242,6 @@ void Board::undoLast()
     LabelMove *undo = &_undoCache.back();
 
     // std::cout << engine->turn << " UNDO " <<  undo->toString() << std::endl; // DEBUG
-
-    int code = Utils::labelToCode(undo->from);
 
     if (undo->newPiece)
     {

@@ -1,5 +1,5 @@
-#include "Position.h"
-#include "PieceInfo.h"
+#include <Position.h>
+#include <PieceInfo.h>
 #include <algorithm>
 
 const std::vector<std::vector<int>> Position::_dirToTranslations

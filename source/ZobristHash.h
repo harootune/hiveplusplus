@@ -2,7 +2,7 @@
 
 #ifndef _ZHASH_
 #define _ZHASH_
-#include "Position.h"
+#include <Position.h>
 #include <map>
 #include <vector>
 

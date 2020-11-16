@@ -2,8 +2,8 @@
 
 #ifndef _HIVEUTILS_
 #define _HIVEUTILS_
-#include "Board.h"
-#include "Move.h"
+#include <Board.h>
+#include <Move.h>
 #include <iostream>
 #include <vector>
 

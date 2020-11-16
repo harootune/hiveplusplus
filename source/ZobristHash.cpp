@@ -1,6 +1,6 @@
-#include "ZobristHash.h"
-#include "PieceInfo.h"
-#include "Utils.h"
+#include <ZobristHash.h>
+#include <PieceInfo.h>
+#include <Utils.h>
 #include <iostream>
 #include <queue>
 

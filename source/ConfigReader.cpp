@@ -1,6 +1,6 @@
-#include "ConfigReader.h"
-#include "Utils.h"
-#include "PieceInfo.h"
+#include <ConfigReader.h>
+#include <Utils.h>
+#include <PieceInfo.h>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -86,7 +86,7 @@ bool ConfigReader::validateConfig(std::map<int, int> config)
     bool bQ = false;
     std::map<int, int>::iterator configIt = config.begin();
 
-    for (configIt; configIt != config.end(); configIt++)
+    for (; configIt != config.end(); configIt++)
     {
         if (configIt->first < PieceCodes::wQ || configIt->first > PieceCodes::bS)
         {

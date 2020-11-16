@@ -1,5 +1,5 @@
-#include "Utils.h"
-#include "PieceInfo.h"
+#include <Utils.h>
+#include <PieceInfo.h>
 #include <regex>
 #include <cctype>
 
@@ -38,7 +38,7 @@ std::string Utils::strip(std::string input)
         if (inputIt == input.end()) { return output; };
     };
 
-    for (inputIt; inputIt != input.end(); inputIt++)
+    for (; inputIt != input.end(); inputIt++)
     {
         if (std::isspace(*inputIt))
         {
@@ -102,7 +102,7 @@ bool Utils::isGameString(std::string input)
     if (tokens.size() > 3)
     {
         std::vector<std::string>::iterator tokenIt = tokens.begin() + 3;
-        for (tokenIt; tokenIt != tokens.end(); tokenIt++)
+        for (; tokenIt != tokens.end(); tokenIt++)
         {
             if (!isMoveString(*tokenIt))
             {

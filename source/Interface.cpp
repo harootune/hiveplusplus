@@ -1,6 +1,6 @@
-#include "Interface.h"
-#include "Utils.h"
-#include "ConfigReader.h"
+#include <Interface.h>
+#include <Utils.h>
+#include <ConfigReader.h>
 #include <iostream>
 #include <regex>
 
@@ -280,7 +280,7 @@ void UHPInterface::_newGame(std::string input)
             if (check && tokens.size() > 3)
             {
                 std::vector<std::string>::iterator tokenIt = tokens.begin() + 3;
-                for (tokenIt; tokenIt != tokens.end() ; tokenIt++)
+                for (; tokenIt != tokens.end() ; tokenIt++)
                 {
                     checkMove = _game.stringToMove(*tokenIt);
                     refMove = _game.validateMove(&checkMove);

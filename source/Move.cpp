@@ -1,6 +1,6 @@
-#include "Move.h"
-#include "Utils.h"
-#include "PieceInfo.h"
+#include <Move.h>
+#include <Utils.h>
+#include <PieceInfo.h>
 
 LabelMove::LabelMove()
 {

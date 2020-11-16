@@ -1,4 +1,4 @@
-#include "TransTable.h"
+#include <TransTable.h>
 
 PositionMove *TranspositionTable::find(unsigned long int zHash)
 {

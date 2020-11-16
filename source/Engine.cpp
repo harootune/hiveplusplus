@@ -1,6 +1,6 @@
-#include "Engine.h"
-#include "PieceInfo.h"
-#include "Utils.h"
+#include <Engine.h>
+#include <PieceInfo.h>
+#include <Utils.h>
 #include <iostream>
 #include <algorithm>
 #include <regex>
@@ -212,7 +212,7 @@ LabelMove Engine::stringToMove(std::string moveString)
         // this is a normal move
         else
         {
-            int direction;
+            int direction = -1;
             int labelLength = 3;
             std::string destination = "";
             bool newPiece = _board.find(components[0]) == nullptr;
@@ -262,6 +262,12 @@ LabelMove Engine::stringToMove(std::string moveString)
                     default:
                         break;
                 };
+            };
+            
+            // Malformed moveString
+            if (direction == -1)
+            {
+                return _labelNonMove;
             };
             
             destination = Utils::strip(destination);
@@ -359,7 +365,6 @@ std::vector<LabelMove> Engine::_genPlacementMoves()
                                     (configIt->first >= PieceCodes::bQ && !white))
                                 {
                                     // if there are any pieces left, continue
-                                    int check = configIt->second - _board.counts[configIt->first];
                                     if (configIt->second - _board.counts[configIt->first] > 0)
                                     {
                                         queenCheck = false;
@@ -587,7 +592,7 @@ std::vector<LabelMove> Engine::_genHopperMoves(std::string label)
     std::vector<std::vector<int>>::iterator adjacentIt = adjacencies.begin();
 
     // initiate a hopper search for every direction with an adjacency
-    for (adjacentIt; adjacentIt != adjacencies.end(); adjacentIt++)
+    for (; adjacentIt != adjacencies.end(); adjacentIt++)
     {
         direction = Position::findDirection(current->getCoords(), *adjacentIt);
         _hopperSearch(label, direction, current, moves);
@@ -629,7 +634,7 @@ std::vector<LabelMove> Engine::genAllMoves()
             targetIt = genTargets.begin();
             std::set<std::vector<int>> pinned = _board.getPinned();
 
-            for (targetIt; targetIt != genTargets.end(); targetIt++) // maybe convert
+            for (; targetIt != genTargets.end(); targetIt++) // maybe convert
             {
                 current = *targetIt;
     
@@ -693,17 +698,12 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
     int bestVal = -1000000;
     std::vector<LabelMove> moves = genAllMoves();
 
-    // if (_board._undoCache.size() != turn)
-    // {
-    //     std::cout << "FAILURE BEFORE INIT" << std::endl;
-    // };
-
     _hash.changeDepth(depth);
 
     tableMove = _transTable.find(_hash.hash);
     if (tableMove != nullptr)
     {
-        std::cout << "TABLE HIT" << std::endl;
+        std::cout << "TABLE HIT" << std::endl; // DEBUG
         return Utils::toLabelMove(*tableMove, _board);
     };
 
@@ -722,35 +722,21 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
     };
 
     PositionMove positionBest = Utils::toPositionMove(best, _board);
-    positionBest.score = bestVal; // is score necessary to track?
-
+    positionBest.score = bestVal;
     _hash.changeDepth(depth);
-
     _transTable.insert(_hash.hash, positionBest);
-
-    // if (_board._undoCache.size() != turn)
-    // {
-    //     std::cout << "FAILURE AFTER INIT" << std::endl;
-    // };
 
     return best;
 };
 
 int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves)
 {
-    // DEBUG
-    if (_board._undoCache.size() != turn)
-    {
-        std::cout << "FAILURE BEFORE SEARCH" << std::endl;
-    };
-
     if (gamestate > GameStates::InProgress || depth == 0)
     {
         return score();    
     };
 
     PositionMove *tableMove;
-    int newAlpha = alpha; // probably unnecessary
     int val = -1000000;
     int curVal;
     bool failHigh = false;
@@ -780,7 +766,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
     for (moveIt = moves.rbegin(); moveIt != moves.rend(); moveIt++)
     {
         makeMove(*moveIt);
-        curVal = -_negaMaxSearch(-beta, -newAlpha, depth-1, killerMoves);
+        curVal = -_negaMaxSearch(-beta, -alpha, depth-1, killerMoves);
         
         if (val < curVal)
         {
@@ -788,11 +774,11 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
             best = *moveIt;
         };
 
-        newAlpha = std::max(newAlpha, val);
+        alpha = std::max(alpha, val);
         
         undoLast();
 
-        if (newAlpha >= beta)
+        if (alpha >= beta)
         {
             std::cout << "FAILED HIGH" << std::endl; // DEBUG
             failHigh = true;
@@ -810,12 +796,6 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
 
         _transTable.insert(_hash.hash, positionBest);
     };
-
-    // DEBUG
-    // if (_board._undoCache.size() != turn)
-    // {
-    //     std::cout << "FAILURE AFTER SEARCH" << std::endl;
-    // };
 
     return val;
 };
