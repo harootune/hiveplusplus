@@ -52,7 +52,7 @@ std::map<int, int> ConfigReader::readConfig(std::string path)
                             temp = int(c) - 48;
                             if (temp < 0 || temp > 9)
                             {
-                                std::cerr << "Invalid character found in config file: " << c <<std::endl;
+                                std::cerr << "err Invalid character found in config file: " << c <<std::endl;
                                 pieceConfig.clear();
                                 return pieceConfig;
                             };
@@ -66,7 +66,7 @@ std::map<int, int> ConfigReader::readConfig(std::string path)
             }
             else
             {
-                std::cerr << "Invalid line in config file: " << currentLine << std::endl;
+                std::cerr << "err Invalid line in config file: " << currentLine << std::endl;
                 pieceConfig.clear();
                 return pieceConfig; 
             };

@@ -725,6 +725,18 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
         return Utils::toLabelMove(*tableMove, _board);
     };
 
+    // find transtable moves of different depths
+    for (int i = 1; i <= depth; i++)
+    {
+        _hash.changeDepth(i);
+        tableMove = _transTable.find(_hash.hash);
+        if (tableMove != nullptr)
+        {
+            // std::cout << "DIFFERENT DEPTH TRANSMOVE" << std::endl;
+            moves.push_back(Utils::toLabelMove(*tableMove, _board));
+        };
+    };
+
     for (LabelMove m: moves)
     {
         makeMove(m);
@@ -771,6 +783,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::ve
         return tableMove->score;
     };
 
+    // find a killer move, if any
     if (killerMoves[depth] != _positionNonMove)
     {
         LabelMove killer = Utils::toLabelMove(killerMoves[depth], _board);
@@ -781,6 +794,20 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::ve
             moves.push_back(killer);
         };
     };
+
+    // find transtable moves of different depths
+    for (int i = 1; i <= maxDepth; i++)
+    {
+        _hash.changeDepth(i);
+        tableMove = _transTable.find(_hash.hash);
+        if (tableMove != nullptr)
+        {
+            // std::cout << "DIFFERENT DEPTH TRANSMOVE" << std::endl;
+            moves.push_back(Utils::toLabelMove(*tableMove, _board));
+        };
+    };
+
+    _hash.changeDepth(maxDepth-depth);
 
     for (moveIt = moves.rbegin(); moveIt != moves.rend(); moveIt++)
     {
