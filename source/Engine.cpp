@@ -664,6 +664,7 @@ LabelMove Engine::recommendMove()
     {
         killerMoves.push_back(_positionNonMove);
         bestMove = _negaMax(alpha, beta, i, killerMoves);
+        std::cout << "Best move at depth " << i << ": " << bestMove.toString() << std::endl;
     };
 
     _hash.changeDepth(_defaultDepth);
@@ -692,7 +693,7 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
     {
         makeMove(m);
 
-        val = -_negaMaxSearch(-beta, -alpha, depth-1, killerMoves);
+        val = -_negaMaxSearch(-beta, -alpha, 0, depth-1, killerMoves);
         if (val > bestVal)
         {
             best = m;
@@ -710,9 +711,9 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
     return best;
 };
 
-int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves)
+int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::vector<PositionMove> &killerMoves)
 {
-    if (gamestate > GameStates::InProgress || depth == 0)
+    if (gamestate > GameStates::InProgress || depth == maxDepth)
     {
         return score();    
     };
@@ -747,7 +748,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionM
     for (moveIt = moves.rbegin(); moveIt != moves.rend(); moveIt++)
     {
         makeMove(*moveIt);
-        curVal = -_negaMaxSearch(-beta, -alpha, depth-1, killerMoves);
+        curVal = -_negaMaxSearch(-beta, -alpha, depth+1, maxDepth, killerMoves);
         
         if (val < curVal)
         {

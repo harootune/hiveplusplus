@@ -24,6 +24,9 @@ void UHPInterface::initTerminal()
     std::string input;
     std::vector<std::string> tokens;
 
+    // Initial output
+    _info("info");
+
     // Terminal loop
     while (true)
     {
@@ -163,7 +166,7 @@ void UHPInterface::_undo(std::string input)
 
         if (tokens.size() > 2)
         {
-            std::cout << "Too many arguments. Usage: undo [int numMoves]" << std::endl;
+            std::cout << "err Too many arguments. Usage: undo [int numMoves]" << std::endl;
         }
         else if (tokens.size() == 1)
         {
@@ -184,7 +187,7 @@ void UHPInterface::_undo(std::string input)
             }
             catch (std::invalid_argument &e)
             {
-                std::cout << "Invalid argument. Usage undo [int numMoves]" << std::endl;
+                std::cout << "err Invalid argument. Usage undo [int numMoves]" << std::endl;
             };
         };
     }

@@ -105,7 +105,7 @@ class Engine
         // The root call of the negamax search
         LabelMove _negaMax(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves);
         // The recursive component of the negamax search
-        int _negaMaxSearch(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves);
+        int _negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::vector<PositionMove> &killerMoves);
         
         /* Misc */
         LabelMove _labelNonMove;
