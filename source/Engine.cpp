@@ -20,6 +20,11 @@ Engine::Engine(std::map<int, int> pieceConfig)
 
 void Engine::makeMove(LabelMove &move)
 {
+    // DEBUG
+    // std::cout << "MAKING MOVE: " << move.toString() << std::endl;
+    // std::cout << "HISTORY BEFORE MOVE: " << toString() << std::endl;
+    // std::cout << "COORDINATE MAP BEFORE MOVE: " << toCoordString() << std::endl;
+
     if (!move.newPiece)
     {
         _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // before move
@@ -34,6 +39,10 @@ void Engine::makeMove(LabelMove &move)
     _hash.invertColor();
 
     _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // after move
+
+    // DEBUG
+    // std::cout << "HISTORY AFTER MOVE: " << toString() << std::endl;
+    // std::cout << "COORDINATE MAP AFTER MOVE: " << toCoordString() << std::endl;
 };
 
 
@@ -48,6 +57,11 @@ void Engine::undoLast()
 {
     LabelMove undo = _board.getLastUndo();
 
+    // DEBUG
+    // std::cout << "UNDOING MOVE: " << undo.toString() << std::endl;
+    // std::cout << "HISTORY BEFORE UNDO: " << toString() << std::endl;
+    // std::cout << "COORDINATE MAP BEFORE UNDO: " << toCoordString() << std::endl;
+
     _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
 
     history.pop_back();
@@ -61,6 +75,10 @@ void Engine::undoLast()
     {
         _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
     };
+
+    // DEBUG
+    // std::cout << "HISTORY AFTER UNDO: " << toString() << std::endl;
+    // std::cout << "COORDINATE MAP UNDO: " << toCoordString() << std::endl;
 };
 
 
@@ -122,8 +140,26 @@ LabelMove *Engine::validateMove(LabelMove *move)
     }
     else
     {
+        if ((!_board.wQueen && move->code < PieceCodes::bQ) ||
+            (!_board.bQueen && move->code >= PieceCodes::bQ))
+        {
+            return nullptr;
+        };
+
         if (onBoard != nullptr)
         {
+            if (onBoard->isTopped)
+            {
+                return nullptr;
+            };
+            
+            std::set<std::vector<int>> pinned = _board.getPinned();
+            if (pinned.find(onBoard->getCoords()) != pinned.end())
+            {
+                return nullptr;
+            };
+
+
             std::vector<LabelMove> possibleMoves;
             switch (move->code % 5)
             {
@@ -726,12 +762,12 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::ve
     std::vector<LabelMove> moves = genAllMoves();
     std::vector<LabelMove>::reverse_iterator moveIt;
 
-    _hash.changeDepth(depth);
+    _hash.changeDepth(maxDepth-depth);
 
     tableMove = _transTable.find(_hash.hash);
     if (tableMove != nullptr)
     {
-        // std::cout << "TABLE HIT" << std::endl; DEBUG
+        // std::cout << "TABLE HIT" << std::endl; // DEBUG
         return tableMove->score;
     };
 
@@ -741,6 +777,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::ve
         LabelMove *killerRef = validateMove(&killer);
         if (killerRef != nullptr)
         {
+            // std::cout << "LEGAL KILLER" << std::endl; // DEBUG
             moves.push_back(killer);
         };
     };
@@ -769,7 +806,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::ve
         };
     };
 
-    _hash.changeDepth(depth);
+    _hash.changeDepth(maxDepth-depth);
 
     if (!failHigh)
     {
