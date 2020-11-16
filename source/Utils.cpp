@@ -180,45 +180,83 @@ LabelMove Utils::toLabelMove(PositionMove &positionMove, Board &board)
     std::string label;
     int direction;
     Piece *toTarget;
+    Piece *fromTarget;
     Position destPosition;
     std::vector<std::vector<int>> neighbors;
 
+    // if this is a new piece, do this
     if (positionMove.newPiece)
     {
+        // if this is a first piece, do this
         if (positionMove.firstPiece)
         {
+            // return a firstpiece move of this piece type
             return LabelMove(board.nextLabel(positionMove.code));
         }
         else
         {
+            // otherwise, set fromTarget to null and get the next label for this code type
+            fromTarget = nullptr;
             label = board.nextLabel(positionMove.code);
         };
     }
+    // if this is a piece translation, do this
     else
     {
-        Piece *fromTarget = board.find(positionMove.from);
+        // fromTarget should be a piece on the board
+        fromTarget = board.find(positionMove.from);
         if (fromTarget == nullptr)
         {
-            return LabelMove();
+            return LabelMove(); // if not, return nonmove
         };
 
+        // otherwise, label is set to the label of fromTarget
         label = fromTarget->label;
     };
-
+    
     if (board.find(positionMove.to) != nullptr) // is this check appropriate?
     {
         return LabelMove();
     };
 
+    // Create a position object at the destination point and get its adjacencies
     destPosition = Position(positionMove.to);
     neighbors = board.adjacencies(&destPosition);
 
+    // if there are no occupied adjacencies, this is impossible, so return a nonmove
     if (neighbors.empty())
     {
         return LabelMove();
     };
 
-    toTarget = board.find(neighbors[0]);
+    // toTarget is a nullptr by default
+    toTarget = nullptr;
+
+    // for every adjacency
+    for (std::vector<int> n: neighbors)
+    {
+        // find the current neighbor
+        toTarget = board.find(n);
+        
+        // if the found neighbor is our fromTarget, reset toTarget and move on
+        if (toTarget == fromTarget)
+        {
+            toTarget = nullptr;
+        }
+        // otherwise break out of the loop
+        else
+        {
+            break;
+        };
+    };
+
+    // if we didnt find any non-toTarget neighbors, this move is impossible, return nonmove
+    if (toTarget == nullptr)
+    {
+        return LabelMove();
+    };
+
+    // find direction
     direction = Position::findDirection(toTarget->getCoords(), destPosition.getCoords());
 
     return LabelMove(label, toTarget->label, direction, positionMove.newPiece);

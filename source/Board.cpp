@@ -516,29 +516,29 @@ int Board::drawScore = 1;
 
 std::vector<int> Board::baseScores
 {
-    10,
-    10,
-    10,
-    10,
-    10
+    10, // Queen
+    10, // Ant
+    10, // Beetle
+    10, // Hopper
+    10 // Spider
 };
 
 std::vector<std::vector<int>> Board::offScores
 {
-    {0, -100, -40, 0, 0},
-    {0, 100, 80, 50, 10},
-    {80, 60, 40, 20, 10},
-    {0, 60, 40, 20, 10},
-    {0, 60, 40, 20, 10}
+    {0, -50, -30},
+    {0, 40, 0},
+    {30, 30, 0},
+    {0, 30, 0},
+    {0, 40, 0}
 };
 
 std::vector<std::vector<int>> Board::defScores
 {
-    {0, 0, 0, 0},
-    {0, 50, 20, 10},
-    {180, 200, 50, 10},
-    {0, 160, 0, 0},
-    {0, 50, 20, 10}
+    {0, 0, 0},
+    {0, 20, 0},
+    {0, 30, 20},
+    {0, 30, 0},
+    {0, 10, 0}
 };
 
 int Board::score(bool white)
@@ -578,7 +578,7 @@ int Board::score(bool white)
             if (find(el)->code < PieceCodes::bQ)
             {
                 // if the piece is white, +/- by 50
-                score -= 50;
+                score -= 30;
             }
             // otherwise
             else
@@ -606,7 +606,7 @@ int Board::score(bool white)
             else
             {
                 // if the piece is black, +/- by 50
-                score += 50;
+                score += 30;
             };
         };
     };
@@ -625,7 +625,7 @@ int Board::score(bool white)
             if (bQueen)
             {
                 distance = p->findDistance(find("bQ"));
-                if (distance < 5)
+                if (distance < 3)
                 {
                     tempScore += offScores[p->code % 5][distance];
                 };
@@ -635,7 +635,7 @@ int Board::score(bool white)
             if (wQueen)
             {
                 distance = p->findDistance(find("wQ"));
-                if (distance < 4)
+                if (distance < 3)
                 {
                     tempScore += defScores[p->code % 5][distance];
                 };
@@ -648,7 +648,7 @@ int Board::score(bool white)
             if (wQueen)
             {
                 distance = p->findDistance(find("wQ"));
-                if (distance < 5)
+                if (distance < 3)
                 {
                     tempScore -= offScores[p->code % 5][distance];
                 };
@@ -657,7 +657,7 @@ int Board::score(bool white)
             if (bQueen)
             {
                 distance = p->findDistance(find("bQ"));
-                if (distance < 4)
+                if (distance < 3)
                 {
                     tempScore -= defScores[p->code % 5][distance];
                 };
