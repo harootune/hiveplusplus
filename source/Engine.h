@@ -66,6 +66,8 @@ class Engine
         LabelMove *validateMove(LabelMove *move); // rework this
         // Converts a move string to a Move object -- maybe move to utils?
         LabelMove stringToMove(std::string moveString);
+        // Change the size of the composited transposition table
+        void setTableSize(int bytes) { _transTable.setMaxSize(bytes); };
         
         /* DEBUG */
         int score();

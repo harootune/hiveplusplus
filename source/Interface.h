@@ -27,10 +27,16 @@ class UHPInterface
         /* Member Variables */
         // The engine which this UHPInterface connects to
         Engine _game;
+        // Whether or not the current engine is active
         bool _active;
+        // The engine's current mode (piececonfig)
         std::string _mode;
+        
+        /* Options Variables */
+        // CustomPath
         std::string _customPath;
-
+        // MaxTableSize - size of transposition table in MB
+        unsigned int _tableSize = 1024;
 
         /* Command Processing */
         // process an info command
@@ -47,7 +53,9 @@ class UHPInterface
         void _validMoves(std::string input);
         // process a newgame command
         void _newGame(std::string input);
+        // process an options command
         void _options(std::string input);
+        // initialize a new engine
         bool _initGame(std::string input);
 };
 

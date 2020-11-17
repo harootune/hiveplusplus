@@ -48,7 +48,7 @@ void UHPInterface::initTerminal()
         {
             if (tokens[0].size() > 0)
             {
-                std::cout << "Unknown command " << tokens[0] << std::endl;
+                std::cout << "err Unknown command " << tokens[0] << std::endl;
                 std::cout << "ok" << std::endl;
             };
             continue;
@@ -64,7 +64,7 @@ void UHPInterface::_info(std::string input)
 
     if (tokens.size() > 1)
     {
-        std::cout << "Note: Arguments discarded. info takes no arguments." << std::endl;
+        std::cout << "note Arguments discarded. info takes no arguments." << std::endl;
     };
 
     std::cout << "ok" << std::endl;  
@@ -80,13 +80,13 @@ void UHPInterface::_play(std::string input)
 
         if (tokens.size() != 1)
         {
-            std::cout << "Too many arguments. Usage: play [MoveString/pass]" << std::endl;
+            std::cout << "err Too many arguments. Usage: play [MoveString/pass]" << std::endl;
         }
         else
         {
             if  (_game.gamestate > 1)
             {
-                std::cout << "Game in end state. Undo or start a new game to continue." << std::endl;
+                std::cout << "err Game in end state. Undo or start a new game to continue." << std::endl;
             }
             else
             {
@@ -206,7 +206,7 @@ void UHPInterface::_pass(std::string input)
         std::vector<std::string> tokens = Utils::tokenize(input, ' ');
         if (tokens.size() != 1)
         {
-            std::cout << "Too many arguments. pass takes no arguments." << std::endl;
+            std::cout << "err Too many arguments. pass takes no arguments." << std::endl;
         }
         else
         {
@@ -230,13 +230,13 @@ void UHPInterface::_validMoves(std::string input)
         std::vector<std::string> tokens = Utils::tokenize(input, ' ');
         if (tokens.size() != 1)
         {
-            std::cout << "Too many arguments. pass takes no arguments." << std::endl;
+            std::cout << "err Too many arguments. pass takes no arguments." << std::endl;
         }
         else
         {
             if  (_game.gamestate > 1)
             {
-                std::cout << "Game in end state. Undo or start a new game to continue." << std::endl;
+                std::cout << "err Game in end state. Undo or start a new game to continue." << std::endl;
             }
             else
             {
@@ -338,7 +338,10 @@ void UHPInterface::_options(std::string input)
                 {
                     std::cout << "CustomPath;string;" << _customPath << std::endl;
                 } 
-                // more options go here
+                else if (tokens[1] == "MaxTableSize")
+                {
+                    std::cout << "MaxTableSize;int;" << _tableSize << ";16;" << std::endl;
+                } 
                 else
                 {
                     std::cout << "err Option name not recognized." << std::endl;
@@ -358,7 +361,30 @@ void UHPInterface::_options(std::string input)
                     _customPath = tokens[2];
                     std::cout << "CustomPath;string;" << _customPath << std::endl;
                 }
-                // more options here
+                else if (tokens[1] == "MaxTableSize")
+                {
+                    try
+                    {
+                        int mb = std::stoi(tokens[2]);
+
+                        if (mb < 16)
+                        {
+                            std::cout << "err Minimum table size: 16MB" << std::endl;
+                        }
+                        else
+                        {
+                            _tableSize = mb;
+                            if (_active)
+                            {
+                                _game.setTableSize(mb * 1024);
+                            };
+                        };
+                    }
+                    catch (std::invalid_argument &e)
+                    {
+                        std::cout << "err Non-integer input." << std::endl; 
+                    };
+                }
                 else
                 {
                     std::cout << "err Option name not recognized." << std::endl;
@@ -378,6 +404,8 @@ void UHPInterface::_options(std::string input)
     {
         // CustomPath
         std::cout << "CustomPath;string;" << _customPath << std::endl; 
+        // MaxTableSize
+        std::cout << "MaxTableSize;int;" << _tableSize << ";16;" << std::endl;
     };
     std::cout << "ok" << std::endl;
 };
@@ -404,6 +432,7 @@ bool UHPInterface::_initGame(std::string input)
         else
         {
             std::cout << "err Path to custom piece config was not found or is not valid." << std::endl;
+            return false;
         };
     }
     else
@@ -411,6 +440,11 @@ bool UHPInterface::_initGame(std::string input)
         // This is temporary handling for expansion pieces, will not be relevant later
         std::cout << "err GameType not recognized." << std::endl;
         return false;
+    };
+
+    if (_active)
+    {
+        _game.setTableSize(_tableSize * 1024);
     };
 
     return true;
