@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <regex>
 
-
 Engine::Engine(std::map<int, int> pieceConfig)
 {
     turn = 0;
@@ -688,19 +687,22 @@ std::vector<LabelMove> Engine::genAllMoves()
     return moves;
 };
 
-LabelMove Engine::recommendMove()
+LabelMove Engine::recommendMove(int depth, int duration)
 {
     LabelMove bestMove;
     std::vector<PositionMove> killerMoves;
+    std::chrono::time_point<std::chrono::high_resolution_clock> start = std::chrono::high_resolution_clock::now();
     int alpha = -1000000;
     int beta = 1000000;
     
 
-    for (int i = 1; i <= 3; i++)
+    for (int i = 1; i <= depth; i++)
     {
         killerMoves.push_back(_positionNonMove);
-        bestMove = _negaMax(alpha, beta, i, killerMoves);
-        std::cout << "Best move at depth " << i << ": " << bestMove.toString() << std::endl;
+        bestMove = _negaMax(alpha, beta, i, duration, start, killerMoves);
+        std::cout << "note Best move at depth " << i << ": " << bestMove.toString() << std::endl;
+
+        if (Utils::checkDuration(duration, start)) { break; };
     };
 
     _hash.changeDepth(_defaultDepth);
@@ -708,15 +710,18 @@ LabelMove Engine::recommendMove()
     return bestMove;
 };
 
-LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves)
+LabelMove Engine::_negaMax(int alpha, int beta, int maxDepth, int duration, 
+                            std::chrono::time_point<std::chrono::high_resolution_clock> &start,  
+                            std::vector<PositionMove> &killerMoves)
 {
     PositionMove *tableMove;
     LabelMove best;
     int val;
     int bestVal = -1000000;
+    bool early = false;
     std::vector<LabelMove> moves = genAllMoves();
 
-    _hash.changeDepth(depth);
+    _hash.changeDepth(maxDepth);
 
     tableMove = _transTable.find(_hash.hash);
     if (tableMove != nullptr)
@@ -726,7 +731,7 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
     };
 
     // find transtable moves of different depths
-    for (int i = 1; i <= depth; i++)
+    for (int i = 1; i <= maxDepth; i++)
     {
         _hash.changeDepth(i);
         tableMove = _transTable.find(_hash.hash);
@@ -741,7 +746,7 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
     {
         makeMove(m);
 
-        val = -_negaMaxSearch(-beta, -alpha, 0, depth-1, killerMoves);
+        val = -_negaMaxSearch(-beta, -alpha, 0, maxDepth-1, duration,  start, killerMoves);
         if (val > bestVal)
         {
             best = m;
@@ -749,17 +754,29 @@ LabelMove Engine::_negaMax(int alpha, int beta, int depth, std::vector<PositionM
         };
 
         undoLast();
+
+        if (Utils::checkDuration(duration, start)) 
+        {
+            early = true; 
+            break; 
+        };
     };
 
-    PositionMove positionBest = Utils::toPositionMove(best, _board);
-    positionBest.score = bestVal;
-    _hash.changeDepth(depth);
-    _transTable.insert(_hash.hash, positionBest);
+    _hash.changeDepth(maxDepth);
+
+    if (!early) 
+    {
+        PositionMove positionBest = Utils::toPositionMove(best, _board);
+        positionBest.score = bestVal; 
+        _transTable.insert(_hash.hash, positionBest); 
+    };
 
     return best;
 };
 
-int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::vector<PositionMove> &killerMoves)
+int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int duration, 
+                            std::chrono::time_point<std::chrono::high_resolution_clock> &start, 
+                            std::vector<PositionMove> &killerMoves)
 {
     if (gamestate > GameStates::InProgress || depth == maxDepth)
     {
@@ -770,6 +787,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::ve
     int val = -1000000;
     int curVal;
     bool failHigh = false;
+    bool early = false;
     LabelMove best;
     std::vector<LabelMove> moves = genAllMoves();
     std::vector<LabelMove>::reverse_iterator moveIt;
@@ -812,7 +830,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::ve
     for (moveIt = moves.rbegin(); moveIt != moves.rend(); moveIt++)
     {
         makeMove(*moveIt);
-        curVal = -_negaMaxSearch(-beta, -alpha, depth+1, maxDepth, killerMoves);
+        curVal = -_negaMaxSearch(-beta, -alpha, depth+1, maxDepth, duration, start, killerMoves);
         
         if (val < curVal)
         {
@@ -831,11 +849,17 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::ve
             killerMoves[depth] = Utils::toPositionMove(*moveIt, _board);
             break;  
         };
+
+        if (Utils::checkDuration(duration, start)) 
+        {
+            early = true; 
+            break; 
+        };
     };
 
     _hash.changeDepth(maxDepth-depth);
 
-    if (!failHigh)
+    if (!failHigh && !early)
     {
         PositionMove positionBest = Utils::toPositionMove(best, _board);
         positionBest.score = val;

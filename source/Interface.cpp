@@ -128,7 +128,6 @@ void UHPInterface::_play(std::string input)
 
 
 void UHPInterface::_bestMove(std::string input)
-// This will eventually need to be expanded to account for depth and time arguments
 {
     if (_active)
     {
@@ -140,13 +139,65 @@ void UHPInterface::_bestMove(std::string input)
         {
             std::vector<std::string> tokens = Utils::tokenize(input, ' ');
 
-            if (tokens.size() > 1)
+            if (tokens.size() > 3)
             {
-                std::cout << "note Arguments discarded. bestmove takes no arguments." << std::endl;
-            };
+                std::cout << "err Invalid argument number. Usage: bestmove (depth [maxDepth] | time [HH:MM:SS duration])?" << std::endl;
+                return;
+            }
+            else if (tokens.size() == 1)
+            {
+                LabelMove recc = _game.recommendMove();
+                std::cout << recc.toString() << std::endl;
+            }
+            else
+            {
+                if (tokens[1] == "depth")
+                {
+                    try
+                    {
+                        int depth = std::stoi(tokens[2]);
 
-            LabelMove recc = _game.recommendMove();
-            std::cout << recc.toString() << std::endl;
+                        if (depth < 1)
+                        {
+                            std::cout << "err Depth of search must be at least 1." << std::endl;
+                        }
+                        else
+                        {
+                            LabelMove recc = _game.recommendMove(depth);
+                            std::cout << recc.toString() << std::endl;
+                        };
+                    }
+                    catch (std::invalid_argument &e)
+                    {
+                        std::cout << "err Depth of search must be an integer." << std::endl;
+                    };
+                }
+                else if (tokens[1] == "time")
+                {
+                    if (Utils::isTimeString(tokens[2]))
+                    {
+                        int duration = Utils::extractSeconds(tokens[2]);
+
+                        if (duration < 1)
+                        {
+                            std::cout << "err Time of search must be at least 1 second." << std::endl;
+                        }
+                        else
+                        {
+                            LabelMove recc = _game.recommendMove(_defaultDepth, duration);
+                            std::cout << recc.toString() << std::endl;
+                        };
+                    }
+                    else
+                    {
+                        std::cout << "err Argument to time must be a TimeString with format HH:MM:SS." << std::endl;
+                    };
+                }
+                else
+                {
+                    std::cout << "err Subcommand " << tokens[1] << " not recognized." << std::endl;
+                };
+            };
         };
     }
     else
@@ -200,6 +251,7 @@ void UHPInterface::_undo(std::string input)
 
 
 void UHPInterface::_pass(std::string input)
+// TODO REWRITE
 {
     if (_active)
     {
@@ -341,7 +393,11 @@ void UHPInterface::_options(std::string input)
                 else if (tokens[1] == "MaxTableSize")
                 {
                     std::cout << "MaxTableSize;int;" << _tableSize << ";16;" << std::endl;
-                } 
+                }
+                else if (tokens[1] == "DefaultDepth")
+                {
+                    std::cout << "DefautlDepth;int;" << _defaultDepth << ";1;" << std::endl;
+                }
                 else
                 {
                     std::cout << "err Option name not recognized." << std::endl;
@@ -385,6 +441,26 @@ void UHPInterface::_options(std::string input)
                         std::cout << "err Non-integer input." << std::endl; 
                     };
                 }
+                else if (tokens[1] == "DefaultDepth")
+                {
+                    try
+                    {
+                        int depth = std::stoi(tokens[2]);
+
+                        if (depth < 1)
+                        {
+                            std::cout << "err Minimum default depth: 1 ply" << std::endl;
+                        }
+                        else
+                        {
+                            _defaultDepth = depth;
+                        };
+                    }
+                    catch (std::invalid_argument &e)
+                    {
+                        std::cout << "err Non-integer input." << std::endl; 
+                    };
+                }
                 else
                 {
                     std::cout << "err Option name not recognized." << std::endl;
@@ -406,6 +482,8 @@ void UHPInterface::_options(std::string input)
         std::cout << "CustomPath;string;" << _customPath << std::endl; 
         // MaxTableSize
         std::cout << "MaxTableSize;int;" << _tableSize << ";16;" << std::endl;
+        // DefaultDepth
+        std::cout << "DefaultDepth;int;" << _defaultDepth << ";1;" << std::endl;
     };
     std::cout << "ok" << std::endl;
 };

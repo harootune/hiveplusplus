@@ -6,6 +6,7 @@
 #include <Move.h>
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 
 namespace Utils
@@ -23,11 +24,14 @@ namespace Utils
     bool isMoveString(std::string input);
     bool isTurnString(std::string input);
     bool isGameString(std::string input);
+    bool isTimeString(std::string input);
     int labelToCode(std::string label);
     // concatenate a coordinate vector with a piece code (used in the ZobristHash)
+    int extractSeconds(std::string input);
     std::vector<int> concatCoords(std::vector<int> coords, int piece);
     PositionMove toPositionMove(LabelMove &labelMove, Board &board);
     LabelMove toLabelMove(PositionMove &positionMove, Board &board);
+    bool checkDuration(int duration, std::chrono::time_point<std::chrono::high_resolution_clock> &start);
 };
 
 #endif

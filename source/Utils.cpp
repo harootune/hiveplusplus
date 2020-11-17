@@ -115,10 +115,44 @@ bool Utils::isGameString(std::string input)
     return typeStringCheck && stateStringCheck && turnStringCheck && moveStringCheck;
 };
 
+bool Utils::isTimeString(std::string input)
+{
+    std::regex pattern("[0-9][0-9]:[0-5][0-9]:[0-5][0-9]");
+
+    return std::regex_match(input, pattern);
+};
+
 int Utils::labelToCode(std::string label)
 {
   std::string prefix = label.substr(0, 2);
   return LabelCodes[prefix];  
+};
+
+int Utils::extractSeconds(std::string input)
+{
+    try
+    {
+        int place;
+        int acc = 0;
+        std::vector<std::string> tokens = tokenize(input, ':');
+
+        for (int i = 0; i < 3; i++)
+        {
+            place = std::stoi(tokens[i]);
+            for (int j = 0; j < 2 - i; j++)
+            {
+                place *= 60;
+            };
+            acc += place;
+        };
+
+        return acc;
+    }
+    catch (std::invalid_argument &e)
+    {
+        std::cout << "err Failed to extract seconds count from TimeString. Returning -1." << std::endl; // DEBUG 
+        return -1;
+    }
 };
 
 std::vector<int> Utils::concatCoords(std::vector<int> coords, int piece)
@@ -260,4 +294,18 @@ LabelMove Utils::toLabelMove(PositionMove &positionMove, Board &board)
     direction = Position::findDirection(toTarget->getCoords(), destPosition.getCoords());
 
     return LabelMove(label, toTarget->label, direction, positionMove.newPiece);
+};
+
+
+bool Utils::checkDuration(int duration, std::chrono::time_point<std::chrono::high_resolution_clock> &start)
+{
+    if (duration < 1)
+    {
+        return false;
+    };
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> now = std::chrono::high_resolution_clock::now();
+    int elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
+    
+    return elapsed >= duration;
 };

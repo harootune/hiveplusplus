@@ -12,6 +12,7 @@
 #include <string>
 #include <stack>
 #include <set>
+#include <chrono>
 
 enum GameStates
 // An enumeration of possible gamestates (gamestate codes)
@@ -55,7 +56,7 @@ class Engine
 
         /* Move Recommendation */
         // Recommend a best move derived from a negamax search
-        LabelMove recommendMove();
+        LabelMove recommendMove(int depth = 4, int duration = 0);
 
         /* Misc */
         // Produce a GameString representing the current board
@@ -105,9 +106,13 @@ class Engine
 
         /* Move Recommendation */
         // The root call of the negamax search
-        LabelMove _negaMax(int alpha, int beta, int depth, std::vector<PositionMove> &killerMoves);
+        LabelMove _negaMax(int alpha, int beta, int maxDepth, int duration, 
+                            std::chrono::time_point<std::chrono::high_resolution_clock> &start,  
+                            std::vector<PositionMove> &killerMoves);
         // The recursive component of the negamax search
-        int _negaMaxSearch(int alpha, int beta, int depth, int maxDepth, std::vector<PositionMove> &killerMoves);
+        int _negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int duration, 
+                            std::chrono::time_point<std::chrono::high_resolution_clock> &start, 
+                            std::vector<PositionMove> &killerMoves);
         
         /* Misc */
         LabelMove _labelNonMove;

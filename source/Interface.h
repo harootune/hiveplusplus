@@ -36,7 +36,9 @@ class UHPInterface
         // CustomPath
         std::string _customPath;
         // MaxTableSize - size of transposition table in MB
-        unsigned int _tableSize = 1024;
+        int _tableSize = 1024;
+        // DefaultDepth
+        int _defaultDepth = 4;
 
         /* Command Processing */
         // process an info command
