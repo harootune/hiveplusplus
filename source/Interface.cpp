@@ -91,12 +91,7 @@ void UHPInterface::_play(std::string input)
             else
             {
                 std::string second = Utils::strip(tokens[0]);
-                if (second == "pass")
-                { 
-                    _pass("pass");
-                    return;
-                }
-                else if (Utils::isMoveString(second))
+                if (Utils::isMoveString(second))
                 {
                     LabelMove checkMove = _game.stringToMove(second);
                     LabelMove *refMove = _game.validateMove(&checkMove);
@@ -107,7 +102,7 @@ void UHPInterface::_play(std::string input)
                     }
                     else
                     {
-                        std::cout << "err Invalid move passed. Converted form: " << checkMove.toString() << std::endl;
+                        std::cout << "err Illegal move passed. Converted form: " << checkMove.toString() << std::endl;
                     };
                 }
                 else
@@ -253,25 +248,15 @@ void UHPInterface::_undo(std::string input)
 void UHPInterface::_pass(std::string input)
 // TODO REWRITE
 {
-    if (_active)
+    std::vector<std::string> tokens = Utils::tokenize(input, ' ');
+    if (tokens.size() != 1)
     {
-        std::vector<std::string> tokens = Utils::tokenize(input, ' ');
-        if (tokens.size() != 1)
-        {
-            std::cout << "err Too many arguments. pass takes no arguments." << std::endl;
-        }
-        else
-        {
-            LabelMove recc = _game.recommendMove();
-            _game.makeMove(recc);
-        };
-        std::cout << _mode << ";" << _game.toString() << std::endl;
+        std::cout << "err Too many arguments. pass takes no arguments." << std::endl;
     }
     else
     {
-        std::cout << "err No active game. Use newgame to initialize a game." << std::endl;
+        _play("play pass");
     };
-    std::cout << "ok" << std::endl;
 };
 
 
@@ -346,8 +331,9 @@ void UHPInterface::_newGame(std::string input)
                     }
                     else
                     {
-                        std::cout << "err Invalid move detected in GameString, reverting moves";
+                        std::cout << "err Invalid move detected in GameString, reverting moves" << std::endl;
                         _game.reset(); // another place where reversability must be implemented
+                        break;
                     };
                 };
             };
@@ -432,7 +418,7 @@ void UHPInterface::_options(std::string input)
                             _tableSize = mb;
                             if (_active)
                             {
-                                _game.setTableSize(mb * 1024);
+                                _game.setTableSize(mb * 1048576);
                             };
                         };
                     }
@@ -522,7 +508,7 @@ bool UHPInterface::_initGame(std::string input)
 
     if (_active)
     {
-        _game.setTableSize(_tableSize * 1024);
+        _game.setTableSize(_tableSize * 1048576);
     };
 
     return true;

@@ -24,11 +24,10 @@ void Engine::makeMove(LabelMove &move)
     // std::cout << "HISTORY BEFORE MOVE: " << toString() << std::endl;
     // std::cout << "COORDINATE MAP BEFORE MOVE: " << toCoordString() << std::endl;
 
-    if (!move.newPiece)
+    if (!move.newPiece && !move.pass)
     {
         _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // before move
     };
-    
 
     history.push_back(move.toString());
     _board.update(move);
@@ -37,8 +36,11 @@ void Engine::makeMove(LabelMove &move)
     white = !white;
     _hash.invertColor();
 
-    _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // after move
-
+    if (!move.pass)
+    {
+        _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // after move
+    };
+    
     // DEBUG
     // std::cout << "HISTORY AFTER MOVE: " << toString() << std::endl;
     // std::cout << "COORDINATE MAP AFTER MOVE: " << toCoordString() << std::endl;
@@ -61,7 +63,10 @@ void Engine::undoLast()
     // std::cout << "HISTORY BEFORE UNDO: " << toString() << std::endl;
     // std::cout << "COORDINATE MAP BEFORE UNDO: " << toCoordString() << std::endl;
 
-    _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+    if (!undo.pass)
+    {
+        _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+    };
 
     history.pop_back();
     _board.undoLast();
@@ -70,7 +75,7 @@ void Engine::undoLast()
     white = !white;
     _hash.invertColor();
 
-    if (!undo.newPiece)
+    if (!undo.newPiece && !undo.pass)
     {
         _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
     };
@@ -90,6 +95,19 @@ int Engine::score()
 LabelMove *Engine::validateMove(LabelMove *move)
 {
     Piece *onBoard = _board.find(move->from);
+
+    if (move->pass)
+    {
+        std::vector<LabelMove> moves = genAllMoves();
+        if (moves[0] == *move) // if there are no moves available, genAllMoves returns a vector with a pass move as its only member
+        {
+            return move;
+        }
+        else
+        {
+            return nullptr; // if there is a choice to move, disallow passing
+        };
+    };
 
     if ((!white && move->code < PieceCodes::bQ) ||
         (white && move->code >= PieceCodes::bQ))
@@ -178,7 +196,7 @@ LabelMove *Engine::validateMove(LabelMove *move)
                     possibleMoves = _genSpiderMoves(move->from);
                     break;
                 default:
-                    std::cout << "Invalid piece code detected in validateMove" << std::endl;
+                    std::cout << "err Invalid piece code detected in validateMove" << std::endl;
                     return nullptr;
                     break;
             };
@@ -215,12 +233,12 @@ LabelMove Engine::stringToMove(std::string moveString)
     if (components[0] == "")
     {  
         // throw some error - this should never occur unless makeMove is called by something without a regex check
-        std::cout << "Empty movestring detected in Board::_stringToMove" << std::endl;
+        std::cout << "err Empty movestring detected in Board::_stringToMove" << std::endl;
         return LabelMove();
     }
     else
     {
-        // this is a first move
+        // this is a first move or a pass move
         if (components.size() == 1)
         {
             return LabelMove(components[0]);
@@ -472,18 +490,19 @@ void Engine::_moveSearch(std::string label, int code, Position *current,
                 if (code % 5 == 2)
                 {
                     std::vector<int> topCoord;
+                
 
                     if (leftBlock != nullptr)
                     {
                         topCoord = leftBlock->getCoords();
-                        topCoord[3] = current->getCoords()[3];
+                        topCoord[3] = std::max((*emptyIt)[3], current->getCoords()[3]);
                         leftBlock = _board.find(topCoord);
                     };
 
                     if (rightBlock != nullptr)
                     {
                         topCoord = rightBlock->getCoords();
-                        topCoord[3] = current->getCoords()[3];
+                        topCoord[3] = std::max((*emptyIt)[3], current->getCoords()[3]);
                         rightBlock = _board.find(topCoord);
                     };
                 };
@@ -499,9 +518,9 @@ void Engine::_moveSearch(std::string label, int code, Position *current,
                     {
                         // check if the neighbor is our original piece
                         nextReference = nullptr;
-                        original = _board.find(label);
 
                         // Add a bottom piece if our piece is elevated
+                        original = _board.find(label);
                         if (original->getCoords()[3] > 0)
                         {
                             std::vector<int> underCoords = original->getCoords();
@@ -676,12 +695,17 @@ std::vector<LabelMove> Engine::genAllMoves()
                             break;
                         default:
                             // throw some error
-                            std::cout << "Invalid code detected in genAllMoves." << std::endl;
+                            std::cout << "err Invalid code detected in genAllMoves." << std::endl;
                     };
                     moves.insert(moves.end(), genResults.begin(), genResults.end());
                 };
             };
         };
+    };
+
+    if (moves.empty())
+    {
+        moves.push_back(LabelMove("pass"));
     };
 
     return moves;
@@ -702,7 +726,10 @@ LabelMove Engine::recommendMove(int depth, int duration)
         bestMove = _negaMax(alpha, beta, i, duration, start, killerMoves);
         std::cout << "note Best move at depth " << i << ": " << bestMove.toString() << std::endl;
 
-        if (Utils::checkDuration(duration, start)) { break; };
+        if (Utils::checkDuration(duration, start)) 
+        {
+            break; 
+        };
     };
 
     _hash.changeDepth(_defaultDepth);
@@ -757,6 +784,7 @@ LabelMove Engine::_negaMax(int alpha, int beta, int maxDepth, int duration,
 
         if (Utils::checkDuration(duration, start)) 
         {
+            std::cout << "note Time limit reached, returning best known move." << std::endl;
             early = true; 
             break; 
         };
@@ -863,7 +891,6 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
     {
         PositionMove positionBest = Utils::toPositionMove(best, _board);
         positionBest.score = val;
-
         _transTable.insert(_hash.hash, positionBest);
     };
 

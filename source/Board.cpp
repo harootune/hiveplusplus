@@ -125,84 +125,82 @@ void Board::update(LabelMove &move, bool reversible)
         _storeUndo(move);
     };
 
-    if (!move.newPiece)
+    if (!move.pass) // we don't need to do anything for a pass move
     {
-        // if (!reversible) // debug
-        // {
-        //     std::cout << "Candidate" << std::endl;
-        // };
-
-        std::vector<int> oldCoords;
-
-        target = find(move.from);
-        oldCoords = target->getCoords();
-        newCoords = find(move.to)->getNeighbor(move.direction);
-        newCoords = top(newCoords);
-        if (find(newCoords) != nullptr)
+        if (!move.newPiece)
         {
-            newCoords[3]++;
-        };
-        target->setCoords(newCoords);
+            std::vector<int> oldCoords;
 
-        // adding new coordinate mapping
-        outer = {newCoords[0], newCoords[1], newCoords[2]};
-        _coordsToPiece[outer][newCoords[3]] = target;
-        
-        // erasing old coordinate mapping
-        outer = {oldCoords[0], oldCoords[1], oldCoords[2]};
-        // this leaves behind the x ,y, z key but breaks searches to full coords by removing v
-        _coordsToPiece[outer].erase(oldCoords[3]);
-
-        // track topping
-        if (newCoords[3] > 0)
-        {
-            underCoords = newCoords;
-            underCoords[3]--;
-            underPiece = find(underCoords);
-            underPiece->isTopped = true; // letting this fail for now to alert to junk underCoords
-        };
-
-        if (oldCoords[3] > 0)
-        {
-            underCoords = oldCoords;
-            underCoords[3]--;
-            underPiece = find(underCoords);
-            underPiece->isTopped = false;
-        };
-    }
-    else
-    {
-        if (!move.firstPiece)
-        {
+            target = find(move.from);
+            oldCoords = target->getCoords();
             newCoords = find(move.to)->getNeighbor(move.direction);
-            target = new Piece(newCoords, move.code, move.from);
+            newCoords = top(newCoords);
+            if (find(newCoords) != nullptr)
+            {
+                newCoords[3]++;
+            };
+            target->setCoords(newCoords);
 
+            // adding new coordinate mapping
             outer = {newCoords[0], newCoords[1], newCoords[2]};
             _coordsToPiece[outer][newCoords[3]] = target;
+            
+            // erasing old coordinate mapping
+            outer = {oldCoords[0], oldCoords[1], oldCoords[2]};
+            // this leaves behind the x ,y, z key but breaks searches to full coords by removing v
+            _coordsToPiece[outer].erase(oldCoords[3]);
 
-            _labelToPiece[move.from] = target;
+            // track topping
+            if (newCoords[3] > 0)
+            {
+                underCoords = newCoords;
+                underCoords[3]--;
+                underPiece = find(underCoords);
+                underPiece->isTopped = true; // letting this fail for now to alert to junk underCoords
+            };
+
+            if (oldCoords[3] > 0)
+            {
+                underCoords = oldCoords;
+                underCoords[3]--;
+                underPiece = find(underCoords);
+                underPiece->isTopped = false;
+            };
         }
         else
         {
-            newCoords = {0, 0, 0, 0};
-            target = new Piece(newCoords, move.code, move.from);
+            if (!move.firstPiece)
+            {
+                newCoords = find(move.to)->getNeighbor(move.direction);
+                target = new Piece(newCoords, move.code, move.from);
 
-            outer = {newCoords[0], newCoords[1], newCoords[2]};
-            _coordsToPiece[outer][newCoords[3]] = target;
+                outer = {newCoords[0], newCoords[1], newCoords[2]};
+                _coordsToPiece[outer][newCoords[3]] = target;
 
-            _labelToPiece[move.from] = target;
-        };
+                _labelToPiece[move.from] = target;
+            }
+            else
+            {
+                newCoords = {0, 0, 0, 0};
+                target = new Piece(newCoords, move.code, move.from);
 
-        counts[move.code]++;
+                outer = {newCoords[0], newCoords[1], newCoords[2]};
+                _coordsToPiece[outer][newCoords[3]] = target;
 
-        // queen update
-        if (move.code == PieceCodes::wQ)
-        {
-            wQueen = true;
-        }
-        else if (move.code == PieceCodes::bQ)
-        {
-            bQueen = true;
+                _labelToPiece[move.from] = target;
+            };
+
+            counts[move.code]++;
+
+            // queen update
+            if (move.code == PieceCodes::wQ)
+            {
+                wQueen = true;
+            }
+            else if (move.code == PieceCodes::bQ)
+            {
+                bQueen = true;
+            };
         };
     };
 };
@@ -234,7 +232,7 @@ void Board::remove(std::string pieceLabel)
         bQueen = false;
     };
 
-    delete target; // suspicious
+    delete target;
 };
 
 void Board::undoLast()
@@ -243,15 +241,17 @@ void Board::undoLast()
 
     // std::cout << engine->turn << " UNDO " <<  undo->toString() << std::endl; // DEBUG
 
-    if (undo->newPiece)
+    if (!undo->pass)
     {
-        remove(undo->from);
-    } 
-    else
-    {
-        update(*undo, false); // is this dereference appropriate?
+        if (undo->newPiece)
+        {
+            remove(undo->from);
+        } 
+        else
+        {
+            update(*undo, false); // is this dereference appropriate?
+        };
     };
-
     // int count2 = counts[code]; // DEBUG
 
     _undoCache.pop_back();
@@ -261,7 +261,7 @@ LabelMove Board::getLastUndo()
 {
     if (_undoCache.empty())
     {
-        return LabelMove();
+        return LabelMove(); // return a non-move if there's nothing in the undo cache
     }
     else
     {
@@ -326,8 +326,8 @@ std::string Board::nextLabel(int code)
 };
 
 void Board::_storeUndo(LabelMove &move)
-{
-    if (move.newPiece)
+{   
+    if (move.newPiece || move.pass)
     {
         _undoCache.push_back(move); // NOT A MOVE
     }

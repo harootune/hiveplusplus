@@ -62,7 +62,7 @@ std::string Utils::strip(std::string input)
 bool Utils::isMoveString(std::string input)
 {
     // could be static somewhere
-    std::regex pattern("([wb][ABGQWS]([1-9]?[0-9]?)?)(\\s*(([\\\\/-][wb][ABGQWS]([1-9]?[0-9]?)?)|([wb][ABGQWS]([1-9]?[0-9]?)?[\\\\/-])))?");
+    std::regex pattern("(([wb][ABGQWS]([1-9]?[0-9]?)?)(\\s*(([\\\\/-][wb][ABGQWS]([1-9]?[0-9]?)?)|([wb][ABGQWS]([1-9]?[0-9]?)?[\\\\/-])))?)|(pass)");
 
     return std::regex_match(input, pattern);
 };
@@ -179,6 +179,10 @@ PositionMove Utils::toPositionMove(LabelMove &labelMove, Board &board)
             fromCoords = {-1, -1, -1, -1};
         };
     }
+    else if (labelMove.pass)
+    {
+        return PositionMove("pass");
+    }
     else
     {
         Piece *fromTarget = board.find(labelMove.from);
@@ -233,6 +237,10 @@ LabelMove Utils::toLabelMove(PositionMove &positionMove, Board &board)
             fromTarget = nullptr;
             label = board.nextLabel(positionMove.code);
         };
+    }
+    else if (positionMove.pass)
+    {
+        return LabelMove("pass");
     }
     // if this is a piece translation, do this
     else

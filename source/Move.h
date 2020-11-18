@@ -18,6 +18,8 @@ class LabelMove
         int code;
         // direction from the "to" piece to the destination of the move
         int direction;
+        // whether or not this is a pass move
+        bool pass;
         // whether or not this is a new piece (placement move)
         bool newPiece;
         // whether or not this is the first piece of a game
@@ -44,11 +46,13 @@ class PositionMove
         int code;
         std::vector<int> from;
         std::vector<int> to;
+        bool pass;
         bool newPiece;
         bool firstPiece;
 
         /* Constructors */
         PositionMove();
+        PositionMove(std::string pass);
         PositionMove(int c);
         PositionMove(int c, std::vector<int> fromCoords, std::vector<int> toCoords, bool newP = false);
 

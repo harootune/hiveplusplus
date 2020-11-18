@@ -8,6 +8,7 @@ LabelMove::LabelMove()
     to = "NULL";
     code = -5;
     direction = -5;
+    pass = false;
     newPiece = false;
     firstPiece = false;
 };
@@ -18,19 +19,32 @@ LabelMove::LabelMove(std::string moveLabel, std::string destLabel, int dir, bool
     to = destLabel;
     code = Utils::labelToCode(moveLabel);
     direction = dir;
+    pass = false;
     newPiece = isNew;
     firstPiece = false;
 };
 
 LabelMove::LabelMove(std::string moveLabel)
-// specifically for a first move
+// specifically for a first move or pass move
 {
     from = moveLabel;
     to = moveLabel;
-    code = Utils::labelToCode(moveLabel);
     direction = -1;
-    newPiece = true;
-    firstPiece = true;
+
+    if (moveLabel == "pass")
+    {
+        code = -1;
+        pass = true;
+        newPiece = false;
+        firstPiece = false;
+    }
+    else
+    {
+        code = Utils::labelToCode(moveLabel);
+        pass = false;
+        newPiece = true;
+        firstPiece = true;
+    };
 };
 
 bool LabelMove::operator==(const LabelMove &other)
@@ -40,6 +54,7 @@ bool LabelMove::operator==(const LabelMove &other)
         to == other.to &&
         code == other.code &&
         direction == other.direction &&
+        pass == other.pass &&
         newPiece == other.newPiece &&
         firstPiece == other.firstPiece
     );
@@ -101,6 +116,7 @@ PositionMove::PositionMove()
     code = -5;
     from = {-1, -1, -1, -1};
     to = {-1, -1, -1, -1};
+    pass = false;
     newPiece = false;
     firstPiece = false; 
 };
@@ -111,8 +127,21 @@ PositionMove::PositionMove(int c)
     code = c;
     from = {0, 0, 0, 0};
     to = {0, 0, 0, 0};
+    pass = false;
     newPiece = true;
     firstPiece = true;
+};
+
+PositionMove::PositionMove(std::string p)
+{
+    // TODO: What if p != pass?
+    score = 0;
+    code = -1;
+    from = {0, 0, 0, 0};
+    to = {0, 0, 0, 0};
+    pass = true;
+    newPiece = false;
+    firstPiece = false;
 };
 
 PositionMove::PositionMove(int c, std::vector<int> fromCoords, std::vector<int> toCoords, bool newP)
@@ -121,6 +150,7 @@ PositionMove::PositionMove(int c, std::vector<int> fromCoords, std::vector<int> 
     code = c;
     from = fromCoords;
     to = toCoords;
+    pass = false;
     newPiece = newP;
     firstPiece = false;
 };
@@ -130,6 +160,7 @@ bool PositionMove::operator==(const PositionMove &other) // does not compare sco
     return code == other.code &&
             from == other.from &&
             to == other.to &&
+            pass == other.pass &&
             newPiece == other.newPiece &&
             firstPiece == other.firstPiece;
 };
