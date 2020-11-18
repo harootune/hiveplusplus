@@ -30,6 +30,8 @@ class Board
         std::vector<LabelMove> _undoCache; // move back
 
         /* Member Variables */
+        // Total piece count
+        int count = 0;
         // Counts for each piece code
         std::map<int, int> counts;
         // Whether or not the white queen is present on board
@@ -47,7 +49,7 @@ class Board
         // Find empty (empty = true) or occupied adjacent hexes to a given piece identified with a label
         std::vector<std::vector<int>> adjacencies(std::string label, bool empty = false);
         // find empty (empty = true) or occuped adjacent hexes to a given piece identified with a position -- should this be a coordinate instead of a position?
-        std::vector<std::vector<int>> adjacencies(Position *pos, bool empty = false);
+        std::vector<std::vector<int>> adjacencies(Position *pos, bool empty = false); // TODO ADDITIONAL OVERLOAD FOR VECTORS
         // returns a pointer to the first piece in the table (used to get an arbitrary valid piece)
         Piece* getFirst();
         // get all pieces of the specified color (true == white, false == black)
@@ -56,6 +58,11 @@ class Board
         std::vector<Piece*> getAllPieces();
         // get all pieces pinned due to the one hive rule
         std::set<std::vector<int>> getPinned();
+        // find the approximate centroid of the current hive
+        std::vector<int> getCenter();
+        // find the maximum radius of the current board
+        int getRadius();
+
         
         /* Piece Manipulation */
         // Make a move described with a Move object. If reversible = true, a reverse Move will be stored in the undocache
@@ -66,6 +73,8 @@ class Board
         void undoLast();
         // Get the most recent move in the undoCache
         LabelMove getLastUndo();
+        // Recenter the entire board -- THIS WILL BREAK THE HASH OF A COMPOSITING ENGINE UNLESS YOU REBUILD IT
+        void recenter(std::vector<int> &centroid);
 
         /* Scoring -- should this be a composited object? */
         // checkmate scores

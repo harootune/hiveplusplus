@@ -47,7 +47,7 @@ ZobristHash::ZobristHash(std::map<int, int> pieceConfig)
     {
         numPieces += pieceIt->second;
     };
-    radius = std::max(10, (numPieces / 2) - 1);
+    radius = std::max(11, (numPieces / 2));
 
     _next = 0;
     _depth = 0;

@@ -104,6 +104,9 @@ class Engine
         // Generates all legal moves for a target spider piece
         std::vector<LabelMove> _genSpiderMoves(std::string label);
 
+        /* Recentering */
+        void _recenter();
+
         /* Move Recommendation */
         // The root call of the negamax search
         LabelMove _negaMax(int alpha, int beta, int maxDepth, int duration, 
@@ -113,7 +116,7 @@ class Engine
         int _negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int duration, 
                             std::chrono::time_point<std::chrono::high_resolution_clock> &start, 
                             std::vector<PositionMove> &killerMoves);
-        
+
         /* Misc */
         LabelMove _labelNonMove;
         PositionMove _positionNonMove;

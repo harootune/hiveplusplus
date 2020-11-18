@@ -190,6 +190,7 @@ void Board::update(LabelMove &move, bool reversible)
                 _labelToPiece[move.from] = target;
             };
 
+            count++;
             counts[move.code]++;
 
             // queen update
@@ -221,6 +222,7 @@ void Board::remove(std::string pieceLabel)
     
     _coordsToPiece[outer].erase(coords[3]);
     _labelToPiece.erase(pieceLabel);
+    count--;
     counts[target->code]--;
 
     if (pieceLabel == "wQ")
@@ -269,25 +271,32 @@ LabelMove Board::getLastUndo()
     };
 };
 
+void Board::recenter(std::vector<int> &centroid)
+{
+    int i;
+    std::vector<int> outer;
+    std::vector<int> coords;
+    std::vector<Piece*> pieces = getAllPieces();
+
+    _coordsToPiece.clear();
+
+    for (Piece *piece: pieces)
+    {
+        coords = piece->getCoords();
+        for (i = 0; i < 3; i++)
+        {
+            coords[i] -= centroid[i];
+        };
+        piece->setCoords(coords);
+
+        outer = {coords[0], coords[1], coords[2]};
+        _coordsToPiece[outer][coords[3]] = piece;
+    }; 
+};
+
 bool Board::empty()
 {
-    if (counts.empty())
-    {
-        return true;
-    }
-    else
-    {
-        std::map<int, int>::iterator countIt;
-
-        for (countIt = counts.begin(); countIt != counts.end(); countIt++)
-        {
-            if (countIt->second != 0)
-            {
-                return false;
-            };
-        };
-        return true;
-    };
+    return count == 0;
 };
 
 void Board::clear()
@@ -296,6 +305,7 @@ void Board::clear()
     _labelToPiece.clear();
     _coordsToPiece.clear();
     _undoCache.clear();
+    count = 0;
     counts.clear();
     wQueen = false;
     bQueen = false;
@@ -352,7 +362,7 @@ void Board::_storeUndo(LabelMove &move)
             };   
         };
 
-        if (!found) { std::cout << "FAILED STOREUNDO" << std::endl; };
+        if (!found) { std::cout << "FAILED STOREUNDO" << std::endl; }; // throw an error
     };
 };
 
@@ -405,6 +415,47 @@ std::set<std::vector<int>> Board::getPinned()
     _pinSearch(rootParent, start, &info);
 
     return info.articulations;
+};
+
+std::vector<int> Board::getCenter()
+{
+    if (empty())
+    {
+        throw std::invalid_argument("Cannot find the center of an empty board");
+    }
+    else
+    {
+        int i;
+        std::vector<int> centroid {0, 0, 0};
+        std::vector<Piece*> pieces;
+
+        for (Piece *piece: pieces)
+        {
+            for (i = 0; i < 2; i++)
+            {
+                centroid[i] += piece->getCoords()[i];
+            };
+        };
+
+        centroid[0] /= count;
+        centroid[1] /= count;
+        centroid[2] = -(centroid[0] + centroid[1]);
+
+        return centroid;
+    };
+};
+
+int Board::getRadius()
+{
+    int rad = 0;
+    Position origin({0, 0, 0, 0});
+
+    for (Piece *piece: getAllPieces())
+    {
+        rad = std::max(rad, origin.findDistance(piece));
+    };
+
+    return rad;
 };
 
 

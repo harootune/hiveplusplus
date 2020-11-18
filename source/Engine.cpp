@@ -23,10 +23,14 @@ void Engine::makeMove(LabelMove &move)
     // std::cout << "MAKING MOVE: " << move.toString() << std::endl;
     // std::cout << "HISTORY BEFORE MOVE: " << toString() << std::endl;
     // std::cout << "COORDINATE MAP BEFORE MOVE: " << toCoordString() << std::endl;
+    
+    Piece *target;
+    Position origin({0, 0, 0, 0});
 
     if (!move.newPiece && !move.pass)
     {
-        _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // before move
+        target = _board.find(move.from);
+        _hash.invertPiece(target->getCoords(), move.code); // before move
     };
 
     history.push_back(move.toString());
@@ -38,7 +42,13 @@ void Engine::makeMove(LabelMove &move)
 
     if (!move.pass)
     {
-        _hash.invertPiece(_board.find(move.from)->getCoords(), move.code); // after move
+        target = _board.find(move.from);
+        _hash.invertPiece(target->getCoords(), move.code); // after move
+        
+        if (target->findDistance(&origin) == _hash.radius)
+        {
+            _recenter();
+        };
     };
     
     // DEBUG
@@ -711,6 +721,24 @@ std::vector<LabelMove> Engine::genAllMoves()
     return moves;
 };
 
+void Engine::_recenter()
+{
+    std::vector<int> centroid = _board.getCenter();
+    std::vector<Piece*> pieces = _board.getAllPieces();
+
+    for (Piece *piece: pieces)
+    {
+        _hash.invertPiece(piece->getCoords(), piece->code);
+    };
+
+    _board.recenter(centroid);
+
+    for (Piece *piece: pieces)
+    {
+        _hash.invertPiece(piece->getCoords(), piece->code);
+    };
+};
+
 LabelMove Engine::recommendMove(int depth, int duration)
 {
     LabelMove bestMove;
@@ -718,7 +746,11 @@ LabelMove Engine::recommendMove(int depth, int duration)
     std::chrono::time_point<std::chrono::high_resolution_clock> start = std::chrono::high_resolution_clock::now();
     int alpha = -1000000;
     int beta = 1000000;
-    
+
+    if (_board.getRadius() > _hash.radius - depth)
+    {
+        _recenter();
+    };
 
     for (int i = 1; i <= depth; i++)
     {

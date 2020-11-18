@@ -424,8 +424,9 @@ void UHPInterface::_options(std::string input)
                     }
                     catch (std::invalid_argument &e)
                     {
-                        std::cout << "err Non-integer input." << std::endl; 
+                        std::cout << "err Non-integer input." << std::endl;
                     };
+                    std::cout << "MaxTableSize;int;" << _tableSize << ";16;" << std::endl; 
                 }
                 else if (tokens[1] == "DefaultDepth")
                 {
@@ -446,6 +447,8 @@ void UHPInterface::_options(std::string input)
                     {
                         std::cout << "err Non-integer input." << std::endl; 
                     };
+
+                    std::cout << "DefaultDepth;int;" << _defaultDepth << ";1;" << std::endl;
                 }
                 else
                 {
