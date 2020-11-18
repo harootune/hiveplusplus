@@ -7,16 +7,6 @@
 #include <vector>
 
 
-struct QPair
-{
-    // can be replaced with a distance calculation
-    QPair();
-    QPair(int d, std::vector<int> c);
-
-    int depth;
-    std::vector<int> coords;
-};
-
 class ZobristTable
 // A table containing 8-byte bit strings describing unique position/piece combinations
 {
@@ -40,6 +30,9 @@ class ZobristHash
 {
     public:
         /* Member Variables */
+        // The maximum radius of the board that the hash value can track
+        int radius;
+        // The current hash value stored in this hash object
         unsigned long int hash;
 
         /* Constructors */
@@ -47,19 +40,22 @@ class ZobristHash
         ZobristHash(std::map<int, int>);
 
         /* Hash Manipulators */
+        // Turn a piece at a certain location on or off
         void invertPiece(std::vector<int> coordinates, int code);
+        // invert the active player hash (switch between white and black)
         void invertColor();
+        // change the depth of the active hash
         void changeDepth(int depth);
         
     private:
         /* Member Variables */
-        // Total number of pieces - used to determine maximum board radius
-        int _numPieces;
         // The current PRNG bitstring
         unsigned long int _next;
+        // The current depth of the hash
         int _depth;
+        // The hash value associated with the white player - if off, current player is black
         unsigned long int _white;
-        // The ZobristTable tracked by this Hash
+        // The ZobristTable composited by this Hash
         ZobristTable _bitTable;
         
         /* Misc */

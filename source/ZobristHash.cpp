@@ -5,18 +5,6 @@
 #include <queue>
 
 
-QPair::QPair()
-{
-    depth = 0;
-    coords = {0, 0, 0, 0};
-};
-
-QPair::QPair(int d, std::vector<int> c)
-{
-    depth = d;
-    coords = c;
-};
-
 void ZobristTable::insert(std::vector<int> coords, int piece, unsigned long int hash)
 {
     // std::cout << coords[0] << ", " << coords[1] << ", " << coords[2] << ", " << coords[3] << std::endl; // debug
@@ -54,11 +42,12 @@ ZobristHash::ZobristHash(std::map<int, int> pieceConfig)
 
     hash = 6543;
     
-    _numPieces = 0;
+    int numPieces = 0;
     for (pieceIt = pieceConfig.begin(); pieceIt != pieceConfig.end(); pieceIt++)
     {
-        _numPieces += pieceIt->second;
+        numPieces += pieceIt->second;
     };
+    radius = std::max(10, (numPieces / 2) - 1);
 
     _next = 0;
     _depth = 0;
@@ -100,28 +89,29 @@ void ZobristHash::_initTable(std::map<int, int> pieceConfig)
     int firstPiece = pieceConfig.begin()->first;
 
     Position neighborGen;
+    std::vector<int> current;
     std::vector<int> neighborVert;
     std::vector<std::vector<int>> neighbors;
     std::vector<std::vector<int>>::iterator neighborIt;
 
-    QPair current(0, {0, 0, 0, 0});
-    std::queue<QPair> depthQ; 
-    depthQ.push(current);
+    Position origin({0, 0, 0, 0});
+    std::queue<std::vector<int>> searchQ; 
+    searchQ.push({0, 0, 0, 0});
 
     // While there are nodes in the queue
-    while (!depthQ.empty())
+    while (!searchQ.empty())
     {
-        current = depthQ.front();
+        current = searchQ.front();
 
         // for each piece in the piececonfig
         for (piece = pieceConfig.begin(); piece != pieceConfig.end(); piece++)
         {
-            _bitTable.insert(current.coords, piece->first, _getNextRand());
+            _bitTable.insert(current, piece->first, _getNextRand());
 
             // if the piece is a beetle, we need to generate vertical coordinates up to the number of beetles
             if (piece->first == PieceCodes::wB || piece->first == PieceCodes::bB)
             {
-                neighborVert = current.coords;
+                neighborVert = current;
 
                 // Generate vertical coordinates for beetles
                 for (i = 1; i <= pieceConfig[PieceCodes::wB] + pieceConfig[PieceCodes::bB]; i++)
@@ -133,21 +123,20 @@ void ZobristHash::_initTable(std::map<int, int> pieceConfig)
         }; 
 
         // if current depth of the search is less than the depth limit of the search, continue the search across all neighbors
-        // This is where we can replace depth with a distance check using max absolute value 
-        if (current.depth < (_numPieces / 2) - 1)  
+        neighborGen = Position(current);
+        if (neighborGen.findDistance(&origin) < radius)  
         {
-            neighborGen = Position(current.coords);
             neighbors = neighborGen.getAllNeighbors();
             for (std::vector<int> neighbor: neighbors)
             {
                 if (!_bitTable.check(neighbor, firstPiece))
                 {
-                    depthQ.push(QPair(current.depth + 1, neighbor));
+                    searchQ.push(neighbor);
                 };
             };
         };
 
-        depthQ.pop();
+        searchQ.pop();
     };
 };
 
