@@ -106,6 +106,11 @@ LabelMove *Engine::validateMove(LabelMove *move)
 {
     Piece *onBoard = _board.find(move->from);
 
+    if (*move == _labelNonMove)
+    {
+        return nullptr;
+    };
+
     if (move->pass)
     {
         std::vector<LabelMove> moves = genAllMoves();
@@ -766,6 +771,9 @@ LabelMove Engine::recommendMove(int depth, int duration)
 
     _hash.changeDepth(_defaultDepth);
 
+    // DEBUG TIMER
+    std::cout << "TIME ELAPSED: " << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() << 'S' << std::endl;
+
     return bestMove;
 };
 
@@ -773,7 +781,8 @@ LabelMove Engine::_negaMax(int alpha, int beta, int maxDepth, int duration,
                             std::chrono::time_point<std::chrono::high_resolution_clock> &start,  
                             std::vector<PositionMove> &killerMoves)
 {
-    PositionMove *tableMove;
+    PositionMove tableMove = _positionNonMove;
+    std::vector<int> transformKey;
     LabelMove best;
     int val;
     int bestVal = -1000000;
@@ -782,22 +791,22 @@ LabelMove Engine::_negaMax(int alpha, int beta, int maxDepth, int duration,
 
     _hash.changeDepth(maxDepth);
 
-    tableMove = _transTable.find(_hash.hash);
-    if (tableMove != nullptr)
-    {
-        // std::cout << "TABLE HIT" << std::endl; // DEBUG
-        return Utils::toLabelMove(*tableMove, _board);
-    };
+    transformKey = _findTransposedRotation(maxDepth, 0);
 
-    // find transtable moves of different depths
-    for (int i = 1; i <= maxDepth; i++)
+    if (!transformKey.empty())
     {
-        _hash.changeDepth(i);
-        tableMove = _transTable.find(_hash.hash);
-        if (tableMove != nullptr)
+        tableMove = _findExactTransposition(transformKey);
+        if (tableMove != _positionNonMove)
         {
-            // std::cout << "DIFFERENT DEPTH TRANSMOVE" << std::endl;
-            moves.push_back(Utils::toLabelMove(*tableMove, _board));
+            std::cout << "EXACT TRANSPOSITION" << std::endl; // DEBUG
+            return Utils::toLabelMove(tableMove, _board);
+        };
+
+        std::vector<LabelMove> tableMoves = _findAdjacentTranspositions(transformKey, maxDepth, 0);
+        for (LabelMove move: tableMoves)
+        {
+            std::cout << "ADJACENT TRANSPOSITION" << std::endl; // DEBUG
+            moves.push_back(move); // could be a std::move I think
         };
     };
 
@@ -827,8 +836,16 @@ LabelMove Engine::_negaMax(int alpha, int beta, int maxDepth, int duration,
     if (!early) 
     {
         PositionMove positionBest = Utils::toPositionMove(best, _board);
-        positionBest.score = bestVal; 
-        _transTable.insert(_hash.hash, positionBest); 
+        positionBest.score = bestVal;
+
+        if (!transformKey.empty())
+        {
+            _storeTransformedBest(positionBest, transformKey);
+        }
+        else
+        {   
+            _transTable.insert(_hash.hash, positionBest);
+        };
     };
 
     return best;
@@ -842,23 +859,31 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
     {
         return score();    
     };
-
-    PositionMove *tableMove;
+    
     int val = -1000000;
     int curVal;
     bool failHigh = false;
     bool early = false;
     LabelMove best;
+    PositionMove tableMove = _positionNonMove;
+    std::vector<int> transformKey;
     std::vector<LabelMove> moves = genAllMoves();
     std::vector<LabelMove>::reverse_iterator moveIt;
 
     _hash.changeDepth(maxDepth-depth);
 
-    tableMove = _transTable.find(_hash.hash);
-    if (tableMove != nullptr)
+    // check if any exact or adjacent transposition of any transformation exists in the trans table
+    transformKey = _findTransposedRotation(maxDepth, depth);
+    
+    // if a transformKey was found, check for an exact transposition at that transformation
+    if (!transformKey.empty())
     {
-        // std::cout << "TABLE HIT" << std::endl; // DEBUG
-        return tableMove->score;
+        tableMove = _findExactTransposition(transformKey);
+        if (tableMove != _positionNonMove)
+        {
+            std::cout << "EXACT TRANSPOSITION" << std::endl; // DEBUG
+            return tableMove.score;
+        };
     };
 
     // find a killer move, if any
@@ -868,20 +893,19 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
         LabelMove *killerRef = validateMove(&killer);
         if (killerRef != nullptr)
         {
-            // std::cout << "LEGAL KILLER" << std::endl; // DEBUG
+            std::cout << "LEGAL KILLER" << std::endl; // DEBUG
             moves.push_back(killer);
         };
     };
 
     // find transtable moves of different depths
-    for (int i = 1; i <= maxDepth; i++)
+    if (!transformKey.empty())
     {
-        _hash.changeDepth(i);
-        tableMove = _transTable.find(_hash.hash);
-        if (tableMove != nullptr)
+        std::vector<LabelMove> tableMoves = _findAdjacentTranspositions(transformKey, maxDepth, depth);
+        for (LabelMove move: tableMoves)
         {
-            // std::cout << "DIFFERENT DEPTH TRANSMOVE" << std::endl;
-            moves.push_back(Utils::toLabelMove(*tableMove, _board));
+            std::cout << "ADJACENT TRANSPOSITION" << std::endl; // DEBUG
+            moves.push_back(move); // could be a std::move I think
         };
     };
 
@@ -904,7 +928,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
 
         if (alpha >= beta)
         {
-            // std::cout << "FAILED HIGH" << std::endl; // DEBUG
+            std::cout << "FAILED HIGH" << std::endl; // DEBUG
             failHigh = true;
             killerMoves[depth] = Utils::toPositionMove(*moveIt, _board);
             break;  
@@ -919,11 +943,20 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
 
     _hash.changeDepth(maxDepth-depth);
 
+    // store an analyzed best move
     if (!failHigh && !early)
     {
         PositionMove positionBest = Utils::toPositionMove(best, _board);
         positionBest.score = val;
-        _transTable.insert(_hash.hash, positionBest);
+
+        if (!transformKey.empty())
+        {
+            _storeTransformedBest(positionBest, transformKey);
+        }
+        else
+        {   
+            _transTable.insert(_hash.hash, positionBest);
+        };
     };
 
     return val;
@@ -973,9 +1006,272 @@ std::string Engine::toString()
     return repr.substr(0, repr.size()-1);
 };
 
+void Engine::_rotate(std::vector<int> &coords)
+{
+    int temp;
+    temp = coords[0];
+    coords[0] = -coords[2];
+    coords[2] = -coords[1];
+    coords[1] = -temp;
+};
+
+void Engine::_mirror(std::vector<int> &coords)
+{
+    int temp;
+    temp = coords[1];
+    coords[0] = -coords[0];
+    coords[1] = -coords[2];
+    coords[2] = -temp;
+};
+
+void Engine::_applyTransformation(std::vector<int> &coords, std::vector<int> &transformation, bool reverse)
+{
+    if (reverse)
+    {   
+        int position;
+        int sign;
+        std::vector<int> result(3, 0);
+
+        for (int i = 0; i < 3; i++)
+        {
+            position = std::abs(transformation[i]);
+            sign = transformation[i] < 0 ? -1 : 1;
+            result[position - 1] = sign * (i + 1);
+        };
+
+        _applyTransformation(coords, result);
+    }
+    else
+    {
+        std::vector<int> temp;
+        std::vector<int> signs;
+        std::vector<int> positions;
+        for (int el: transformation)
+        {
+            signs.push_back(el < 0 ? -1 : 1);
+            positions.push_back(std::abs(el) - 1);
+        };
+
+        temp = {signs[0] * coords[positions[0]], 
+                signs[1] * coords[positions[1]], 
+                signs[2] * coords[positions[2]]};
+
+        for (int i = 0; i < 3; i++)
+        {
+            coords[i] = temp[i];
+        };
+    };
+};
+
+
+std::vector<int> Engine::_findTransposedRotation(int maxDepth, int currentDepth)
+{
+    PositionMove *target;
+
+    unsigned long int originalHash = _hash.hash;
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    std::vector<std::vector<int>> coords;
+    for (Piece *piece: pieces)
+    {
+        coords.push_back(piece->getCoords());
+    };
+    std::vector<int> transformation {1, 2, 3}; // starting from this code ensures we always check from a {1, 2, 3} transposition first
+    
+    // a bit clunky, but this allows us to avoid an unecessary initial transformation
+    // and prioritize searching the untransformed hash + its mirror first
+    // check the initial hash at all depths
+    for (int i = 1; i <= maxDepth; i++)
+    {
+        _hash.changeDepth(i);
+        target = _transTable.find(_hash.hash);
+        if (target != nullptr)
+        {
+            _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
+            _hash.hash = originalHash;
+            return transformation;
+        };
+    };
+
+    // Check the first mirror at all depths
+    _mirror(transformation);
+    for (unsigned int i = 0; i < coords.size(); i++)
+    {
+        _hash.invertPiece(coords[i], pieces[i]->code);
+        _mirror(coords[i]);
+        _hash.invertPiece(coords[i], pieces[i]->code);
+    };
+
+    for (int i = 1; i <= maxDepth; i++)
+    {
+        _hash.changeDepth(i);
+        target = _transTable.find(_hash.hash);
+        if (target != nullptr)
+        {
+            _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
+            _hash.hash = originalHash;
+            return transformation;
+        };
+    };
+
+    // check the rest
+    for (int i = 0; i < 2; i++)
+    {
+        _mirror(transformation);
+
+        for (unsigned int j = 0; j < pieces.size(); j++)
+        {
+            _hash.invertPiece(coords[j], pieces[j]->code);
+            _mirror(coords[j]);
+        };
+
+        for (int k = 0; k < 5; k++)
+        {
+            _rotate(transformation);
+
+            for (unsigned int l = 0; l < pieces.size(); l++)
+            {
+                _rotate(coords[l]);
+                _hash.invertPiece(coords[l], pieces[l]->code);
+            };
+
+            for (int m = 1; m <= maxDepth; m++)
+            {
+                _hash.changeDepth(m);
+                target = _transTable.find(_hash.hash);
+                if (target != nullptr)
+                {
+                    _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
+                    _hash.hash = originalHash;
+                    return transformation;
+                };
+            };
+        };
+    };
+
+    _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
+    _hash.hash = originalHash;
+    return {}; // return a blank transformation if we didnt find anything
+};
+
+PositionMove Engine::_findExactTransposition(std::vector<int> &transformation)
+{
+    PositionMove *target;
+    unsigned long int originalHash = _hash.hash;
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    std::vector<std::vector<int>> coords;
+    for (Piece *piece: pieces)
+    {
+        coords.push_back(piece->getCoords());
+    };
+
+    for (unsigned int i = 0; i < pieces.size(); i++)
+    {
+        _hash.invertPiece(pieces[i]->getCoords(), pieces[i]->code);
+        _applyTransformation(coords[i], transformation);
+        _hash.invertPiece(coords[i], pieces[i]->code);
+    };
+
+    target = _transTable.find(_hash.hash);
+    _hash.hash = originalHash;
+
+
+    if (target == nullptr)
+    {
+        return _positionNonMove; // return a nonmove if we didnt find anything
+    }
+    else
+    {
+        PositionMove ret(*target);
+        _applyTransformation(ret.from, transformation, true);
+        _applyTransformation(ret.to, transformation, true);
+
+        return ret; 
+    };
+};
+
+std::vector<LabelMove> Engine::_findAdjacentTranspositions(std::vector<int> &transformation, int maxDepth, int currentDepth)
+{
+    PositionMove *target;
+    PositionMove temp;
+    std::vector<PositionMove> accumulator;
+    std::vector<LabelMove> retVector;
+    unsigned long int originalHash = _hash.hash;
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    std::vector<std::vector<int>> coords;
+    for (Piece *piece: pieces)
+    {
+        coords.push_back(piece->getCoords());
+    };
+
+    for (unsigned int i = 0; i < pieces.size(); i++)
+    {
+        _hash.invertPiece(pieces[i]->getCoords(), pieces[i]->code);
+        _applyTransformation(coords[i], transformation);
+        _hash.invertPiece(coords[i], pieces[i]->code);
+    };
+
+    for (int j = 1; j <= maxDepth; j++)
+    {
+        _hash.changeDepth(j);
+        target = _transTable.find(_hash.hash);
+        if (target != nullptr)
+        {
+            accumulator.emplace_back(*target);
+        };
+    };
+
+    for (unsigned int k = 0; k < accumulator.size(); k++)
+    {
+        _applyTransformation(accumulator[k].from, transformation, true);
+        _applyTransformation(accumulator[k].to, transformation, true);
+
+        retVector.push_back(Utils::toLabelMove(accumulator[k], _board));
+    };
+
+    _hash.changeDepth(maxDepth - currentDepth);
+    _hash.hash = originalHash;
+    return retVector;
+};
+
+ void Engine::_storeTransformedBest(PositionMove bestMove, std::vector<int> transformKey)
+ {
+    unsigned long int originalHash = _hash.hash;
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    std::vector<std::vector<int>> coords;
+    for (Piece *piece: pieces)
+    {
+        coords.push_back(piece->getCoords());
+    };
+
+    for (unsigned int i = 0; i < pieces.size(); i++)
+    {
+        _hash.invertPiece(coords[i], pieces[i]->code);
+        _applyTransformation(coords[i], transformKey);
+        _hash.invertPiece(coords[i], pieces[i]->code);
+    };
+
+    _applyTransformation(bestMove.to, transformKey);
+    _applyTransformation(bestMove.from, transformKey);
+
+    _transTable.insert(_hash.hash, bestMove);
+    
+    _hash.hash = originalHash;
+ };
+
 
 void Engine::reset()
 {
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    for (Piece* piece: pieces)
+    {
+        _hash.invertPiece(piece->getCoords(), piece->code);
+    };
+
+    if (!white)
+    {
+        _hash.invertColor();
+    };
+
     history.clear();
     _board.clear();
     turn = 0;

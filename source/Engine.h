@@ -69,6 +69,7 @@ class Engine
         LabelMove stringToMove(std::string moveString);
         // Change the size of the composited transposition table
         void setTableSize(int bytes) { _transTable.setMaxSize(bytes); };
+
         
         /* DEBUG */
         int score();
@@ -116,6 +117,20 @@ class Engine
         int _negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int duration, 
                             std::chrono::time_point<std::chrono::high_resolution_clock> &start, 
                             std::vector<PositionMove> &killerMoves);
+        // Rotate a coordinate clockwise around the origin
+        void _rotate(std::vector<int> &coords);
+        // Mirror a coordinate across the origin
+        void _mirror(std::vector<int> &coords);
+        // Apply a combinations of mirrors or rotations represented with a 3-item int vector
+        void _applyTransformation(std::vector<int> &coords, std::vector<int> &transformation, bool reverse = false);
+        // Find a rotation/mirror combination with a valid transposition, if any
+        std::vector<int> _findTransposedRotation(int maxDepth, int currentDepth);
+        // Find an exact transposition of the current game and search state
+        PositionMove _findExactTransposition(std::vector<int> &transformation);
+        // Find all transpositions of the current gamestate, regardless of search state
+        std::vector<LabelMove> _findAdjacentTranspositions(std::vector<int> &transformation, int maxDepth, int currentDepth);
+        // Store a best move to a transformed transposition in the trans table
+        void _storeTransformedBest(PositionMove bestMove, std::vector<int> transformKey);
 
         /* Misc */
         LabelMove _labelNonMove;
