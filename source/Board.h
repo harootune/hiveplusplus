@@ -82,7 +82,7 @@ class Board
         // score for a draw
         static int drawScore;
         // base scores for each piece code
-        static std::vector<int> baseScores;
+        static std::vector<std::vector<int>> baseScores;
         // scaling offense bonuses per piece code
         static std::vector<std::vector<int>> offScores;
         // scaling defense bonuses per piece code

@@ -565,20 +565,20 @@ int Board::checkMateScore = 100000;
 
 int Board::drawScore = 1;
 
-std::vector<int> Board::baseScores
+std::vector<std::vector<int>> Board::baseScores
 {
-    10, // Queen
-    10, // Ant
-    10, // Beetle
-    10, // Hopper
-    10 // Spider
+    {0, 10, 10, 20, 20, 30, 30, 100, 100, 100, 100}, // Queen
+    {0, 0, 0, 0, 0, 10, 10, 20, 20, 30, 30}, // Ant
+    {0, 10, 10, 20, 20, 20, 20, 20, 20, 30, 30}, // Beetle
+    {0, 10, 10, 10, 20, 30, 30, 20, 20, 20, 20}, // Hopper
+    {0, 30, 30, 30, 30, 20, 20, 20, 10, 10, 10}, // Spider
 };
 
 std::vector<std::vector<int>> Board::offScores
 {
     {0, -50, -30},
     {0, 40, 0},
-    {30, 30, 0},
+    {250, 80, 0},
     {0, 30, 0},
     {0, 40, 0}
 };
@@ -628,7 +628,7 @@ int Board::score(bool white)
             // if that piece is white, do this
             if (find(el)->code < PieceCodes::bQ)
             {
-                // if the piece is white, +/- by 50
+                // if the piece is white, +/- by 30
                 score -= 30;
             }
             // otherwise
@@ -656,7 +656,7 @@ int Board::score(bool white)
             // otherwise
             else
             {
-                // if the piece is black, +/- by 50
+                // if the piece is black, +/- by 30
                 score += 30;
             };
         };
@@ -670,7 +670,7 @@ int Board::score(bool white)
         if (p->white)
         {
             // add base score
-            tempScore += baseScores[p->code % 5];
+            tempScore += count < 10 ? baseScores[p->code % 5][count] : baseScores[p->code % 5][10];
 
             // offensive scores
             if (bQueen)
@@ -694,7 +694,7 @@ int Board::score(bool white)
         }
         else
         {
-            tempScore -= baseScores[p->code % 5];
+            tempScore -= count < 10 ? baseScores[p->code % 5][count] : baseScores[p->code % 5][10];
 
             if (wQueen)
             {
