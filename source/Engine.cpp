@@ -468,33 +468,40 @@ void Engine::makeMove(std::string moveString)
 
 void Engine::undoLast()
 {
-    LabelMove undo = _board.getLastUndo();
-
-    // DEBUG
-    // std::cout << "UNDOING MOVE: " << undo.toString() << std::endl;
-    // std::cout << "HISTORY BEFORE UNDO: " << toString() << std::endl;
-    // std::cout << "COORDINATE MAP BEFORE UNDO: " << toCoordString() << std::endl;
-
-    if (!undo.pass)
+    if (!history.empty())
     {
-        _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
-    };
+        LabelMove undo = _board.getLastUndo();
 
-    history.pop_back();
-    _board.undoLast();
-    gamestate = _board.checkGameState();
-    turn--;
-    white = !white;
-    _hash.invertColor();
+        // DEBUG
+        // std::cout << "UNDOING MOVE: " << undo.toString() << std::endl;
+        // std::cout << "HISTORY BEFORE UNDO: " << toString() << std::endl;
+        // std::cout << "COORDINATE MAP BEFORE UNDO: " << toCoordString() << std::endl;
 
-    if (!undo.newPiece && !undo.pass)
+        if (!undo.pass)
+        {
+            _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+        };
+
+        history.pop_back();
+        _board.undoLast();
+        gamestate = _board.checkGameState();
+        turn--;
+        white = !white;
+        _hash.invertColor();
+
+        if (!undo.newPiece && !undo.pass)
+        {
+            _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+        };
+
+        // DEBUG
+        // std::cout << "HISTORY AFTER UNDO: " << toString() << std::endl;
+        // std::cout << "COORDINATE MAP UNDO: " << toCoordString() << std::endl;
+    }
+    else
     {
-        _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+        std::cout << "err Game has no move history." << std::endl;
     };
-
-    // DEBUG
-    // std::cout << "HISTORY AFTER UNDO: " << toString() << std::endl;
-    // std::cout << "COORDINATE MAP UNDO: " << toCoordString() << std::endl;
 };
 
 

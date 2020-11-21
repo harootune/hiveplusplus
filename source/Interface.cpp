@@ -227,7 +227,7 @@ void UHPInterface::_undo(std::string input)
         {
             try
             {
-                int numMoves = std::stoi(Utils::strip(tokens[0]));
+                int numMoves = std::stoi(Utils::strip(tokens[1]));
                 for (int i = 0; i < numMoves; i++)
                 {
                     // TODO: account for what happens if an undo is not possible 
@@ -497,11 +497,11 @@ void UHPInterface::_options(std::string input)
     else
     {
         // CustomPath
-        std::cout << "CustomPath;string;" << _customPath << std::endl; 
+        std::cout << "CustomPath;string;" << _customPath << ";" << std::endl; 
         // MaxTableSize
-        std::cout << "MaxTableSize;int;" << _tableSize << ";16;" << std::endl;
+        std::cout << "MaxTableSize;int;" << _tableSize << ";1024;16;" << std::endl;
         // DefaultDepth
-        std::cout << "DefaultDepth;int;" << _defaultDepth << ";1;" << std::endl;
+        std::cout << "DefaultDepth;int;" << _defaultDepth << ";4;1;" << std::endl;
     };
 };
 
@@ -527,7 +527,7 @@ bool UHPInterface::_initGame(std::string input)
         }
         else
         {
-            std::cout << "err Path to custom piece config was not found or is not valid." << std::endl;
+            std::cout << "err Path to custom piece config was not found or configuration is not valid." << std::endl;
             return false;
         };
     }

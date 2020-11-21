@@ -381,7 +381,7 @@ void Board::update(LabelMove &move, bool reversible)
                 }
                 else
                 {
-                    underPiece->isTopped = true;
+                    underPiece->isTopped = false;
                 };
             };
         }
