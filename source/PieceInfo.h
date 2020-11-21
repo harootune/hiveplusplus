@@ -25,8 +25,9 @@ enum PieceCodes
 };
 
 // Piece codes -> piece names
-extern std::vector<std::string> PieceNames;
+extern const std::vector<std::string> PieceNames;
+
 // Piece names -> piece codes
-extern std::map<std::string, int> LabelCodes;
+extern const std::map<std::string, int> LabelCodes;
 
 #endif

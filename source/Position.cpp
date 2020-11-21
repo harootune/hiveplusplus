@@ -2,6 +2,7 @@
 #include <PieceInfo.h>
 #include <algorithm>
 
+
 const std::vector<std::vector<int>> Position::_dirToTranslations
 {
     {0, 1, -1},
@@ -11,6 +12,7 @@ const std::vector<std::vector<int>> Position::_dirToTranslations
     {-1, 0, 1},
     {-1, 1, 0}
 };
+
 
 const std::map<std::vector<int>, int> Position::_translationsToDir
 {
@@ -22,25 +24,63 @@ const std::map<std::vector<int>, int> Position::_translationsToDir
     {{-1, 1, 0}, 5},
 };
 
+
 Position::Position()
 {
     _coords = {0, 0, 0, 0};
 };
+
 
 Position::Position(std::vector<int> coords)
 {
     _coords = coords;
 };
 
+
 std::vector<int> Position::getCoords()
 {
     return _coords;
 };
 
+
 void Position::setCoords(std::vector<int> c)
 {
+    std::string errorRepr;
+
+    int acc = 0;
+
+    // fail if not an xyzv coordinate
+    if (c.size() != 4)
+    {
+        errorRepr = "";
+        for (int el: c)
+        {
+            errorRepr += std::to_string(el) + ", ";
+        };
+
+        throw (std::runtime_error("Cannot build a hex position from coordinates: " + errorRepr));        
+    };
+
+    for (int i = 0; i < 3; i++)
+    {
+        acc += c[i];
+    };
+
+    // fail if xyz doesnt equal 0
+    if (acc != 0)
+    {
+        errorRepr = "";
+        for (int el: c)
+        {
+            errorRepr += std::to_string(el) + ", ";
+        };
+
+        throw (std::runtime_error("Hex coordinates x,y,z must equal 0. Given: " + errorRepr));
+    };
+
     _coords = c;
 };
+
 
 std::vector<int> Position::getNeighbor(int direction)
 {
@@ -57,6 +97,7 @@ std::vector<int> Position::getNeighbor(int direction)
     return neighbor;
 };
 
+
 std::vector<std::vector<int>> Position::getAllNeighbors()
 {
     std::vector<std::vector<int>> neighbors;
@@ -69,15 +110,37 @@ std::vector<std::vector<int>> Position::getAllNeighbors()
     return neighbors;
 };
 
+
 std::vector<int> Position::convertDirection(int dir)
 {
-    return _dirToTranslations[dir]; // checking
+    try
+    {
+        return _dirToTranslations[dir];
+    }
+    catch (std::out_of_range &e)
+    {
+        throw (std::runtime_error("Attempted conversion of invalid direction: " + std::to_string(dir)));
+    };
 };
+
 
 int Position::convertTranslation(const std::vector<int> &trans)
 {
-    return _translationsToDir.find(trans)->second; // checking
+    std::map<std::vector<int>, int>::const_iterator check = _translationsToDir.find(trans);
+    
+    if (check == _translationsToDir.end())
+    {
+        std::string errorRepr = "";
+        for (int el: trans)
+        {
+            errorRepr += std::to_string(el) + ", ";
+        };
+        throw (std::runtime_error("Attempted conversion of invalid translation: " + errorRepr));
+    };
+
+    return _translationsToDir.find(trans)->second;
 };
+
 
 int Position::findDirection(const std::vector<int> &from, const std::vector<int> &to)
 {
@@ -90,11 +153,13 @@ int Position::findDirection(const std::vector<int> &from, const std::vector<int>
     );
 };
 
+
 int Position::findDistance(Position *other)
 // The distance in # of hex pieces (min translations from one Position to another)
 // can be found by taking the maximum absolute value among the x, y, and z coordinates
 {
     int check;
+
     int distance = 0;
     std::vector<int> otherCoords = other->getCoords();
     std::vector<int> distanceDiff {
@@ -112,6 +177,7 @@ int Position::findDistance(Position *other)
     return distance;
 };
 
+
 Piece::Piece()
 {
     code = -1;
@@ -120,6 +186,7 @@ Piece::Piece()
     _coords = {0, 0, 0, 0};
 };
 
+
 Piece::Piece(std::vector<int> &coords)
 {
     code = -1;
@@ -127,6 +194,7 @@ Piece::Piece(std::vector<int> &coords)
     isTopped = false;
     _coords = coords;
 };
+
 
 Piece::Piece(std::vector<int> &coords, int c, std::string l)
 {

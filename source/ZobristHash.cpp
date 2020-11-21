@@ -12,6 +12,7 @@ void ZobristTable::insert(std::vector<int> coords, int piece, unsigned long int 
     _map.insert({tempCoords, hash});
 };
 
+
 unsigned long int ZobristTable::find(std::vector<int> coords, int piece)
 {
 
@@ -28,6 +29,7 @@ unsigned long int ZobristTable::find(std::vector<int> coords, int piece)
     };
 };
 
+
 bool ZobristTable::check(std::vector<int> coords, int piece)
 {
     std::vector<int> tempCoords = Utils::concatCoords(coords, piece);
@@ -35,6 +37,7 @@ bool ZobristTable::check(std::vector<int> coords, int piece)
 
     return it != _map.end();
 };
+
 
 ZobristHash::ZobristHash(std::map<int, int> pieceConfig)
 {
@@ -56,24 +59,33 @@ ZobristHash::ZobristHash(std::map<int, int> pieceConfig)
     _initTable(pieceConfig);
 };
 
+
 void ZobristHash::invertPiece(std::vector<int> coordinates, int code)
 {
     unsigned long int targetHash = _bitTable.find(coordinates, code);
+
     if (targetHash != 0)
     {
         hash ^= targetHash;
     }
-    else
+    else // throw an error if the hash table missed 
     {
-        // DEBUG - final version should throw an error
-        std::cout << "err Zobrist hash miss." << std::endl;
+        std::string errorRepr = "";
+        for (int el: coordinates)
+        {
+            errorRepr += std::to_string(el) + ", ";
+        };
+
+        throw(std::runtime_error("Zobrist Hash missed at coordinates: " + errorRepr + " piece code: " + std::to_string(code)));
     };
 };
+
 
 void ZobristHash::invertColor()
 {
     hash ^= _white;
 };
+
 
 void ZobristHash::changeDepth(int depth)
 {
@@ -82,20 +94,21 @@ void ZobristHash::changeDepth(int depth)
     _depth = depth;
 };
 
+
 void ZobristHash::_initTable(std::map<int, int> pieceConfig)
 {   
     int i;
     std::map<int, int>::iterator piece;
-    int firstPiece = pieceConfig.begin()->first;
-
     Position neighborGen;
     std::vector<int> current;
     std::vector<int> neighborVert;
     std::vector<std::vector<int>> neighbors;
     std::vector<std::vector<int>>::iterator neighborIt;
 
+    int firstPiece = pieceConfig.begin()->first;
     Position origin({0, 0, 0, 0});
     std::queue<std::vector<int>> searchQ; 
+    
     searchQ.push({0, 0, 0, 0});
 
     // While there are nodes in the queue
@@ -139,6 +152,7 @@ void ZobristHash::_initTable(std::map<int, int> pieceConfig)
         searchQ.pop();
     };
 };
+
 
 unsigned long int ZobristHash::_getNextRand()
 // This is a PRNG that is essentially an explicit reimplementation of rand() which allows overflows

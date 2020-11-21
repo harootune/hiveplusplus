@@ -4,17 +4,31 @@
 #define _UHPINTERFACE_
 #include <Engine.h>
 
+
 namespace StandardPConfigs
 {
-    extern std::map<int, int> base;
+    const std::map<int, int> base
+    {
+        {0, 1},
+        {1, 3}, 
+        {2, 2},
+        {3, 3},
+        {4, 2},
+        {5, 1},
+        {6, 3},
+        {7, 2},
+        {8, 3},
+        {9, 2}
+    };
 };
+
 
 class UHPInterface
 // A UHP command line through which the Engine can be interacted with
 {
     public:
         /* Constructors */
-        UHPInterface() { _active = false; };
+        UHPInterface();
 
         /* Misc */
         // Initialize the command line
@@ -36,9 +50,9 @@ class UHPInterface
         // CustomPath
         std::string _customPath;
         // MaxTableSize - size of transposition table in MB
-        int _tableSize = 1024;
+        int _tableSize;
         // DefaultDepth
-        int _defaultDepth = 4;
+        int _defaultDepth;
 
         /* Command Processing */
         // process an info command

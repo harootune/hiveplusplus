@@ -2,6 +2,7 @@
 #include <Utils.h>
 #include <PieceInfo.h>
 
+
 LabelMove::LabelMove()
 {
     from = "NULL";
@@ -13,6 +14,7 @@ LabelMove::LabelMove()
     firstPiece = false;
 };
 
+
 LabelMove::LabelMove(std::string moveLabel, std::string destLabel, int dir, bool isNew)
 {
     from = moveLabel;
@@ -23,6 +25,7 @@ LabelMove::LabelMove(std::string moveLabel, std::string destLabel, int dir, bool
     newPiece = isNew;
     firstPiece = false;
 };
+
 
 LabelMove::LabelMove(std::string moveLabel)
 // specifically for a first move or pass move
@@ -47,6 +50,7 @@ LabelMove::LabelMove(std::string moveLabel)
     };
 };
 
+
 bool LabelMove::operator==(const LabelMove &other)
 {
     return (
@@ -60,11 +64,13 @@ bool LabelMove::operator==(const LabelMove &other)
     );
 };
 
+
 bool LabelMove::operator!=(const LabelMove &other)
 {
     bool check = this->operator==(other);
     return !check;
 };
+
 
 std::string LabelMove::toString()
 {
@@ -110,6 +116,7 @@ std::string LabelMove::toString()
     };
 };
 
+
 PositionMove::PositionMove()
 {
     score = 0;
@@ -120,6 +127,7 @@ PositionMove::PositionMove()
     newPiece = false;
     firstPiece = false; 
 };
+
 
 PositionMove::PositionMove(int c)
 {
@@ -132,17 +140,25 @@ PositionMove::PositionMove(int c)
     firstPiece = true;
 };
 
+
 PositionMove::PositionMove(std::string p)
 {
-    // TODO: What if p != pass?
-    score = 0;
-    code = -1;
-    from = {0, 0, 0, 0};
-    to = {0, 0, 0, 0};
-    pass = true;
-    newPiece = false;
-    firstPiece = false;
+    if (p == "pass")
+    {
+        score = 0;
+        code = -1;
+        from = {0, 0, 0, 0};
+        to = {0, 0, 0, 0};
+        pass = true;
+        newPiece = false;
+        firstPiece = false;
+    }
+    else
+    {
+        throw (std::invalid_argument("Cannot construct a position move given string: " + p));
+    };
 };
+
 
 PositionMove::PositionMove(int c, std::vector<int> fromCoords, std::vector<int> toCoords, bool newP)
 {
@@ -155,6 +171,7 @@ PositionMove::PositionMove(int c, std::vector<int> fromCoords, std::vector<int> 
     firstPiece = false;
 };
 
+
 bool PositionMove::operator==(const PositionMove &other) // does not compare scores
 {
     return code == other.code &&
@@ -164,6 +181,7 @@ bool PositionMove::operator==(const PositionMove &other) // does not compare sco
             newPiece == other.newPiece &&
             firstPiece == other.firstPiece;
 };
+
 
 bool PositionMove::operator!=(const PositionMove &other)
 {

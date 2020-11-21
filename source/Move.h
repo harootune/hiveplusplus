@@ -5,8 +5,11 @@
 #include <string>
 #include <vector>
 
+
+// TODO: These two move classes really should inherit from a base class
+
 class LabelMove
-// An object describing a piece placement or movement on the Board -- could probably be a struct
+// An object describing a piece placement or movement on the Board in terms of labels
 {
     public:
         /* Member Variables */
@@ -39,9 +42,13 @@ class LabelMove
         std::string toString();
 };
 
+
 class PositionMove
+// An object describing a piece placement or movement on the Board in terms concrete hex coordinates
 {
+
     public:
+        // score is included in positionmoves because they are stored in the transposition table
         int score;
         int code;
         std::vector<int> from;

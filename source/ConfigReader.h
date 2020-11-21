@@ -5,6 +5,8 @@
 #include <map>
 
 namespace ConfigReader
+// A namespace which provides utilities for reading and validating .pconfig files
+// NOTE: This is extremely fragile right now
 {
     // read a config file
     std::map<int, int> readConfig(std::string path);

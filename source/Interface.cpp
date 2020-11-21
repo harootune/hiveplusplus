@@ -4,18 +4,12 @@
 #include <iostream>
 #include <regex>
 
-std::map<int, int> StandardPConfigs::base
+
+UHPInterface::UHPInterface()
 {
-    {0, 1},
-    {1, 3}, 
-    {2, 2},
-    {3, 3},
-    {4, 2},
-    {5, 1},
-    {6, 3},
-    {7, 2},
-    {8, 3},
-    {9, 2}
+    _active = false;
+    _defaultDepth = 4;
+    _tableSize = 1024;
 };
 
 
@@ -26,15 +20,19 @@ void UHPInterface::initTerminal()
 
     // Initial output
     _info("info");
+    std::cout << "ok" << std::endl;
 
     // Terminal loop
     while (true)
     {
+        // get a line from stdin and reduce it to space-separated tokens
         std::getline(std::cin, input);
         input = Utils::strip(input);
         tokens = Utils::tokenize(input, ' ');
         
+        // Identify the line's command
         // TODO: Length check
+        // TODOl Dear god replace this with a jump table
         if (tokens[0] == "info") { _info(input); }
         else if (tokens[0] == "play") { _play(input); }
         else if (tokens[0] == "validmoves") { _validMoves(input); } 
@@ -49,10 +47,10 @@ void UHPInterface::initTerminal()
             if (tokens[0].size() > 0)
             {
                 std::cout << "err Unknown command " << tokens[0] << std::endl;
-                std::cout << "ok" << std::endl;
             };
-            continue;
         };
+
+        std::cout << "ok" <<std::endl;
     };  
 };
 
@@ -60,20 +58,22 @@ void UHPInterface::_info(std::string input)
 {
     std::vector<std::string> tokens = Utils::tokenize(input, ' ');
 
-    std::cout << "id hive++ indev" << std::endl;
-
     if (tokens.size() > 1)
     {
-        std::cout << "note Arguments discarded. info takes no arguments." << std::endl;
+        std::cout << "err Too many arguments. info takes no arguments." << std::endl;
+    }
+    else
+    {
+        std::cout << "id hive++ indev" << std::endl;
     };
-
-    std::cout << "ok" << std::endl;  
 };
 
 void UHPInterface::_play(std::string input)
 {
+    // if we have an active game, do this
     if (_active)
     {
+        // tokenize everything after the command itself by semicolon
         std::string cleanInput = Utils::strip(input);
         cleanInput = cleanInput.substr(5);
         std::vector<std::string> tokens = Utils::tokenize(cleanInput, ';');
@@ -96,6 +96,7 @@ void UHPInterface::_play(std::string input)
                     LabelMove checkMove = _game.stringToMove(second);
                     LabelMove *refMove = _game.validateMove(&checkMove);
 
+                    // validateMove returns a nullptr if the provided move could not be converted to a valid form
                     if (refMove != nullptr)
                     {
                         _game.makeMove(checkMove);
@@ -113,17 +114,17 @@ void UHPInterface::_play(std::string input)
         };
         std::cout << _mode << ";" << _game.toString() << std::endl;
     }
+    // log an error message if no active game
     else
     {
         std::cout << "err No active game. Use newgame to initialize a game." << std::endl;
     };
-
-    std::cout << "ok" << std::endl;
 };
 
 
 void UHPInterface::_bestMove(std::string input)
 {
+    // if we have an active game, do this
     if (_active)
     {
         if  (_game.gamestate > 1)
@@ -136,7 +137,7 @@ void UHPInterface::_bestMove(std::string input)
 
             if (tokens.size() > 3)
             {
-                std::cout << "err Invalid argument number. Usage: bestmove (depth [maxDepth] | time [HH:MM:SS duration])?" << std::endl;
+                std::cout << "err Invalid argument number. Usage: bestmove (depth [int maxDepth] | time [HH:MM:SS duration])?" << std::endl;
                 return;
             }
             else if (tokens.size() == 1)
@@ -146,6 +147,7 @@ void UHPInterface::_bestMove(std::string input)
             }
             else
             {
+                // depth controls
                 if (tokens[1] == "depth")
                 {
                     try
@@ -167,6 +169,7 @@ void UHPInterface::_bestMove(std::string input)
                         std::cout << "err Depth of search must be an integer." << std::endl;
                     };
                 }
+                // time controls
                 else if (tokens[1] == "time")
                 {
                     if (Utils::isTimeString(tokens[2]))
@@ -199,13 +202,12 @@ void UHPInterface::_bestMove(std::string input)
     {
         std::cout << "err No active game. Use newgame to start a new game." << std::endl;
     };
-
-    std::cout << "ok" << std::endl;
 };
 
 
 void UHPInterface::_undo(std::string input)
 {
+    // if we have an active game, do this
     if (_active)
     {
         std::vector<std::string> tokens = Utils::tokenize(input, ' ');
@@ -216,17 +218,19 @@ void UHPInterface::_undo(std::string input)
         }
         else if (tokens.size() == 1)
         {
-            // Need to account for what happens if an undo is not possible 
+            // TODO: account for what happens if an undo is not possible 
             _game.undoLast();
             std::cout << _mode << ";" << _game.toString() << std::endl;
         }
-        else // one argument was given
+        // behavior for number of undos argument 
+        else
         {
             try
             {
                 int numMoves = std::stoi(Utils::strip(tokens[0]));
                 for (int i = 0; i < numMoves; i++)
                 {
+                    // TODO: account for what happens if an undo is not possible 
                     _game.undoLast();
                 };
                 std::cout << _mode << ";" << _game.toString() << std::endl;
@@ -241,12 +245,10 @@ void UHPInterface::_undo(std::string input)
     {
         std::cout << "err No active game. Use newgame to initialize a game." << std::endl;
     };
-    std::cout << "ok" << std::endl;
 };
 
 
 void UHPInterface::_pass(std::string input)
-// TODO REWRITE
 {
     std::vector<std::string> tokens = Utils::tokenize(input, ' ');
     if (tokens.size() != 1)
@@ -275,6 +277,7 @@ void UHPInterface::_validMoves(std::string input)
             {
                 std::cout << "err Game in end state. Undo or start a new game to continue." << std::endl;
             }
+            // if we have an active engine and a game in play, build a string of valid movestrings
             else
             {
                 std::string repr = "";
@@ -284,9 +287,17 @@ void UHPInterface::_validMoves(std::string input)
                 {
                     repr += m.toString() + ";";
                 };
-
-                repr = repr == "" ? "No valid moves" : repr;
-                std::cout << repr << std::endl;
+                
+                // this should only ever happen if genAllMoves is broken, so throw an error
+                if (repr == "")
+                {
+                    throw (std::runtime_error("No valid moves returned from Board::genAllMoves."));
+                }
+                // if everything is working fine, return repr
+                else
+                {
+                    std::cout << repr << std::endl;
+                };
             };
         };
     }
@@ -294,32 +305,38 @@ void UHPInterface::_validMoves(std::string input)
     {
         std::cout << "err No active game. Use newgame to initialize a game." << std::endl;
     };
-    std::cout << "ok" << std::endl;
 };
 
 
 void UHPInterface::_newGame(std::string input)
+// TODO: Implement reversability
 {
-    // This is going to cause a problem if someone provides an invalid game string
-    // TODO improve safety
-    std::vector<std::string> engineHistory = _game.history;  // this is to help with reversability, currently does nothing
     LabelMove checkMove;
     LabelMove *refMove;
 
+    std::vector<std::string> engineHistory = _game.history;  // this is to help with reversability, currently does nothing
+
+    // behavior for arguments
     if (input.size() > 8)
     {
         std::string cleanInput = Utils::strip(input.substr(8));
 
+        // If the argument is a valid game string, do this
         if (Utils::isGameString(cleanInput))
         {
-            std::vector<std::string> tokens = Utils::tokenize(cleanInput, ';');
             bool check;
 
+            // tokenize the game string by semicolon
+            std::vector<std::string> tokens = Utils::tokenize(cleanInput, ';');
+            
+            // attempt to initialize the game
             check = _initGame(tokens[0]);
 
+            // if the initialization succeeds, make all moves indicated in the game string
             if (check && tokens.size() > 3)
             {
                 std::vector<std::string>::iterator tokenIt = tokens.begin() + 3;
+
                 for (; tokenIt != tokens.end() ; tokenIt++)
                 {
                     checkMove = _game.stringToMove(*tokenIt);
@@ -332,21 +349,25 @@ void UHPInterface::_newGame(std::string input)
                     else
                     {
                         std::cout << "err Invalid move detected in GameString, reverting moves" << std::endl;
-                        _game.reset(); // another place where reversability must be implemented
+                        std::cout << "note Previous board lost. This will be fixed in a future version." << std::endl;
+                        _game.reset(); // TODO: another place where reversability must be implemented
                         break;
                     };
                 };
             };
         }
+        // otherwise, if the argument is a valid game type string, initialize that game type
         else if (Utils::isGameTypeString(cleanInput))
         {
             _initGame(cleanInput);
         }
+        // throw an error if the argument is junk
         else
         {
             std::cout << "err Not a valid GameString." << std::endl;
         };
     }
+    // if there are no arguments, start a base game
     else
     {
         _initGame("Base");
@@ -356,20 +377,23 @@ void UHPInterface::_newGame(std::string input)
     {   
         std::cout << _mode << ";" << _game.toString() << std::endl;
     };
-    
-    std::cout << "ok" << std::endl;
 };
+
 
 void UHPInterface::_options(std::string input)
 {
     input = Utils::strip(input);
     
+    // behavior if arguments are provided
     if (input.size() > 7)
     {
         input = Utils::strip(input.substr(7));
         std::vector<std::string> tokens = Utils::tokenize(input, ' ');
+
+        // get behavior
         if (tokens[0] == "get")
         {
+            // switch behavior for various options
             if (tokens.size() == 2)
             {
                 if (tokens[1] == "CustomPath")
@@ -394,10 +418,12 @@ void UHPInterface::_options(std::string input)
                 std::cout << "err get takes one argument. Usage: options get [optionName]" << std::endl;
             };
         }
+        // set behavior
         else if (tokens[0] == "set")
         {
             if (tokens.size() == 3)
             {
+                // switch behavior for various options
                 if (tokens[1] == "CustomPath")
                 {
                     _customPath = tokens[2];
@@ -455,16 +481,19 @@ void UHPInterface::_options(std::string input)
                     std::cout << "err Option name not recognized." << std::endl;
                 };
             }
+            // Inappropriate argument number
             else
             {
                 std::cout << "err set takes two arguments. Usage: options set [optionName] [value]" << std::endl;
             };
         }
+        // invalid subcommand
         else
         {
             std::cout << "err options subcommand not recognized. Available subcommands: get, set" << std::endl;
         };
     }
+    // behavior if no arguments - list everything
     else
     {
         // CustomPath
@@ -474,8 +503,8 @@ void UHPInterface::_options(std::string input)
         // DefaultDepth
         std::cout << "DefaultDepth;int;" << _defaultDepth << ";1;" << std::endl;
     };
-    std::cout << "ok" << std::endl;
 };
+
 
 bool UHPInterface::_initGame(std::string input)
 {

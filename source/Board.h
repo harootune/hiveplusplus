@@ -13,7 +13,8 @@
 struct _OneHiveInfo
 // A structure used to store information relevant to the articulation vertex search used to enforce the one hive rule
 {
-    int time = 0; // current time of the search
+    _OneHiveInfo();
+    int time; // current time of the search
     std::set<std::vector<int>> articulations; // located articulation vertices
     std::map<std::vector<int>, int> entryTime; // map of entry points for each vertex
     std::map<std::vector<int>, int> earliestTime; // map of earliest reachable times for each vertex
@@ -31,13 +32,16 @@ class Board
 
         /* Member Variables */
         // Total piece count
-        int count = 0;
+        int count;
         // Counts for each piece code
         std::map<int, int> counts;
         // Whether or not the white queen is present on board
         bool wQueen = false;
         // Whether or not the black queen is present on board
         bool bQueen = false;
+
+        /* Constructor */
+        Board();
 
         /* Piece Location */
         // Find a piece using a label
@@ -77,16 +81,6 @@ class Board
         void recenter(std::vector<int> &centroid);
 
         /* Scoring -- should this be a composited object? */
-        // checkmate scores
-        static int checkMateScore;
-        // score for a draw
-        static int drawScore;
-        // base scores for each piece code
-        static std::vector<std::vector<int>> baseScores;
-        // scaling offense bonuses per piece code
-        static std::vector<std::vector<int>> offScores;
-        // scaling defense bonuses per piece code
-        static std::vector<std::vector<int>> defScores;
         // get the score for the specified color (true == white, false == black)
         int score (bool white);
 
@@ -100,11 +94,11 @@ class Board
         // returns a code indicating the current gamestate of the board (captures, draws, etc)
         int checkGameState();
 
-        /* DEBUG */
-        std::string coordsMapToString();
-
         /* Destructor */
         ~Board();
+
+        /* DEBUG */
+        std::string coordsMapToString();
 
     private: 
         /* Member Variables */

@@ -2,7 +2,7 @@
 #include <vector>
 #include <map>
 
-std::vector<std::string> PieceNames
+const std::vector<std::string> PieceNames
 {
     "wQ",
     "wA",
@@ -16,7 +16,7 @@ std::vector<std::string> PieceNames
     "bS"
 };
 
-std::map<std::string, int> LabelCodes
+const std::map<std::string, int> LabelCodes
 {
     {"wQ", 0},
     {"wA", 1},

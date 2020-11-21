@@ -57,6 +57,9 @@ ZobristHash.o:
 clean:
 	rm *.o & rm hpp
 
+clean_objects:
+	rm *.o
+
 test:
 	@echo $(DEPS)
 

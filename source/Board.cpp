@@ -1,8 +1,18 @@
 #include <Board.h>
 #include <PieceInfo.h>
+#include <Score.h>
 #include <Utils.h>
 #include <stdexcept>
 #include <cmath>
+
+
+_OneHiveInfo::_OneHiveInfo(): time(0) {};
+
+
+Board::Board()
+{
+    count = 0;
+};
 
 
 Piece *Board::find(std::string label)
@@ -16,6 +26,7 @@ Piece *Board::find(std::string label)
         return nullptr;
     };
 };
+
 
 Piece *Board::find(std::vector<int> coords)
 {
@@ -34,8 +45,11 @@ Piece *Board::find(std::vector<int> coords)
 
 
 std::vector<int> Board::top(std::vector<int> coords)
+// This returns the coordinates of the highest stacked piece at a certain x,y,z coordinate, or
+// x,y,z,0 if no piece is present.
 {
     std::vector<int> outerCoords;
+
     outerCoords.insert(outerCoords.begin(), coords.begin(), coords.begin()+3);
 
     try
@@ -68,21 +82,21 @@ std::vector<int> Board::top(std::vector<int> coords)
     };
 };
 
+
 std::vector<std::vector<int>> Board::adjacencies(std::string label, bool empty)
 {
     Piece *neighbor;
-    std::vector<std::vector<int>> existingNeighbors;
 
     Piece *target = find(label);
-    // empty check here
+    std::vector<std::vector<int>> existingNeighbors;
     std::vector<std::vector<int>> neighborCoords = target->getAllNeighbors();
     
     for (int i = 0; i < 6; i++)
     {
         neighborCoords[i] = top(neighborCoords[i]);
         neighbor = find(neighborCoords[i]);
-        if ((neighbor != nullptr && !empty) ||
-            (neighbor == nullptr && empty))
+        if ((neighbor != nullptr && !empty) || // If not empty and there is a neighbor
+            (neighbor == nullptr && empty)) // or empty and there is no neighbor, add this coordinate
         {
             existingNeighbors.push_back(neighborCoords[i]);
         };
@@ -90,6 +104,7 @@ std::vector<std::vector<int>> Board::adjacencies(std::string label, bool empty)
 
     return existingNeighbors;
 };
+
 
 std::vector<std::vector<int>> Board::adjacencies(Position *pos, bool empty)
 {
@@ -112,206 +127,10 @@ std::vector<std::vector<int>> Board::adjacencies(Position *pos, bool empty)
     return existingNeighbors;
 };
 
-void Board::update(LabelMove &move, bool reversible)
-{
-    Piece *target;
-    Piece *underPiece;
-    std::vector<int> outer;
-    std::vector<int> newCoords;
-    std::vector<int> underCoords;
-    
-    if (reversible)
-    {
-        _storeUndo(move);
-    };
-
-    if (!move.pass) // we don't need to do anything for a pass move
-    {
-        if (!move.newPiece)
-        {
-            std::vector<int> oldCoords;
-
-            target = find(move.from);
-            oldCoords = target->getCoords();
-            newCoords = find(move.to)->getNeighbor(move.direction);
-            newCoords = top(newCoords);
-            if (find(newCoords) != nullptr)
-            {
-                newCoords[3]++;
-            };
-            target->setCoords(newCoords);
-
-            // adding new coordinate mapping
-            outer = {newCoords[0], newCoords[1], newCoords[2]};
-            _coordsToPiece[outer][newCoords[3]] = target;
-            
-            // erasing old coordinate mapping
-            outer = {oldCoords[0], oldCoords[1], oldCoords[2]};
-            // this leaves behind the x ,y, z key but breaks searches to full coords by removing v
-            _coordsToPiece[outer].erase(oldCoords[3]);
-
-            // track topping
-            if (newCoords[3] > 0)
-            {
-                underCoords = newCoords;
-                underCoords[3]--;
-                underPiece = find(underCoords);
-                underPiece->isTopped = true; // letting this fail for now to alert to junk underCoords
-            };
-
-            if (oldCoords[3] > 0)
-            {
-                underCoords = oldCoords;
-                underCoords[3]--;
-                underPiece = find(underCoords);
-                underPiece->isTopped = false;
-            };
-        }
-        else
-        {
-            if (!move.firstPiece)
-            {
-                newCoords = find(move.to)->getNeighbor(move.direction);
-                target = new Piece(newCoords, move.code, move.from);
-
-                outer = {newCoords[0], newCoords[1], newCoords[2]};
-                _coordsToPiece[outer][newCoords[3]] = target;
-
-                _labelToPiece[move.from] = target;
-            }
-            else
-            {
-                newCoords = {0, 0, 0, 0};
-                target = new Piece(newCoords, move.code, move.from);
-
-                outer = {newCoords[0], newCoords[1], newCoords[2]};
-                _coordsToPiece[outer][newCoords[3]] = target;
-
-                _labelToPiece[move.from] = target;
-            };
-
-            count++;
-            counts[move.code]++;
-
-            // queen update
-            if (move.code == PieceCodes::wQ)
-            {
-                wQueen = true;
-            }
-            else if (move.code == PieceCodes::bQ)
-            {
-                bQueen = true;
-            };
-        };
-    };
-};
-
-void Board::remove(std::string pieceLabel)
-{
-    Piece *target = find(pieceLabel);
-    std::vector<int> coords = target->getCoords();
-    std::vector<int> outer {coords[0], coords[1], coords[2]};
-
-    if (coords[3] > 0)
-    {
-        std::vector<int> underCoords = coords;
-        underCoords[3]--;
-        Piece *underPiece = find(underCoords); // also letting this fail on bad underCoords
-        underPiece->isTopped = false;
-    };
-    
-    _coordsToPiece[outer].erase(coords[3]);
-    _labelToPiece.erase(pieceLabel);
-    count--;
-    counts[target->code]--;
-
-    if (pieceLabel == "wQ")
-    {
-        wQueen = false;
-    }
-    else if (pieceLabel == "bQ")
-    {
-        bQueen = false;
-    };
-
-    delete target;
-};
-
-void Board::undoLast()
-{
-    LabelMove *undo = &_undoCache.back();
-
-    // std::cout << engine->turn << " UNDO " <<  undo->toString() << std::endl; // DEBUG
-
-    if (!undo->pass)
-    {
-        if (undo->newPiece)
-        {
-            remove(undo->from);
-        } 
-        else
-        {
-            update(*undo, false); // is this dereference appropriate?
-        };
-    };
-    // int count2 = counts[code]; // DEBUG
-
-    _undoCache.pop_back();
-};
-
-LabelMove Board::getLastUndo()
-{
-    if (_undoCache.empty())
-    {
-        return LabelMove(); // return a non-move if there's nothing in the undo cache
-    }
-    else
-    {
-        return _undoCache.back();
-    };
-};
-
-void Board::recenter(std::vector<int> &centroid)
-{
-    int i;
-    std::vector<int> outer;
-    std::vector<int> coords;
-    std::vector<Piece*> pieces = getAllPieces();
-
-    _coordsToPiece.clear();
-
-    for (Piece *piece: pieces)
-    {
-        coords = piece->getCoords();
-        for (i = 0; i < 3; i++)
-        {
-            coords[i] -= centroid[i];
-        };
-        piece->setCoords(coords);
-
-        outer = {coords[0], coords[1], coords[2]};
-        _coordsToPiece[outer][coords[3]] = piece;
-    }; 
-};
-
-bool Board::empty()
-{
-    return count == 0;
-};
-
-void Board::clear()
-{
-    _clearPieces();
-    _labelToPiece.clear();
-    _coordsToPiece.clear();
-    _undoCache.clear();
-    count = 0;
-    counts.clear();
-    wQueen = false;
-    bQueen = false;
-};
 
 Piece *Board::getFirst()
+// this is primarily used to get a random piece as a start point for certain traversals
+// e.g. articulation vertex search
 {
     if (empty())
     {
@@ -324,64 +143,30 @@ Piece *Board::getFirst()
     };
 };
 
-std::string Board::nextLabel(int code)
-{
-    std::string label = PieceNames[code];
-
-    if (code % 5 != 0)
-    {
-        label += std::to_string(counts[code] + 1);
-    }
-    return label;
-};
-
-void Board::_storeUndo(LabelMove &move)
-{   
-    if (move.newPiece || move.pass)
-    {
-        _undoCache.push_back(move); // NOT A MOVE
-    }
-    else
-    {
-        Piece *target = find(move.from); 
-        Piece *oldNeighbor = nullptr;
-
-        bool found = false;
-
-        for (int i = 0; i < 6; i++)
-        {
-            oldNeighbor = find(target->getNeighbor(i));
-            
-            if (oldNeighbor != nullptr)
-            {
-                int reverseDirection = (3 + i) % 6;
-                LabelMove reverseMove(target->label, oldNeighbor->label, reverseDirection);
-                _undoCache.push_back(reverseMove); // maybe a move
-                found = true;
-                break;
-            };   
-        };
-
-        if (!found) { std::cout << "FAILED STOREUNDO" << std::endl; }; // throw an error
-    };
-};
 
 std::vector<Piece*> Board::getColorPieces(bool white)
+// TODO: Find a better way to extract color pieces besides the character key
+// Maybe maintain sets of each color's pieceS?
 {
-    std::map<std::string, Piece*>::iterator labelIt;
     std::vector<Piece*> targets;
+    std::map<std::string, Piece*>::iterator labelIt;
+
     char key = white ? 'w' : 'b';
 
+    // For each piece in the _labelToPiece table
     for (labelIt = _labelToPiece.begin(); labelIt != _labelToPiece.end(); labelIt++)
     {
+        // if the label begins with the corresponding key
         if (labelIt->first[0] == key)
         {
+            // Add it to our accumulator
             targets.push_back(labelIt->second);
         };
     };
 
     return targets;
 };
+
 
 std::vector<Piece*> Board::getAllPieces()
 {
@@ -398,15 +183,17 @@ std::vector<Piece*> Board::getAllPieces()
     return targets;   
 };
 
+
 std::set<std::vector<int>> Board::getPinned()
-// returns a set of articulation vertices for the current board.
 {
+    // return an empty set if empty, as Board::_pinSearch cannot execute without a starting location
     if (empty())
     {
         return {};
     };
 
     _OneHiveInfo info;
+
     std::vector<int> rootParent {-1, -1, -1, -1};
     std::vector<int> start = getFirst()->getCoords();
     start[3] = 0;
@@ -414,48 +201,7 @@ std::set<std::vector<int>> Board::getPinned()
     // this will break if there are no pieces on the board
     _pinSearch(rootParent, start, &info);
 
-    return info.articulations;
-};
-
-std::vector<int> Board::getCenter()
-{
-    if (empty())
-    {
-        throw std::invalid_argument("Cannot find the center of an empty board");
-    }
-    else
-    {
-        int i;
-        std::vector<int> centroid {0, 0, 0};
-        std::vector<Piece*> pieces;
-
-        for (Piece *piece: pieces)
-        {
-            for (i = 0; i < 2; i++)
-            {
-                centroid[i] += piece->getCoords()[i];
-            };
-        };
-
-        centroid[0] /= count;
-        centroid[1] /= count;
-        centroid[2] = -(centroid[0] + centroid[1]);
-
-        return centroid;
-    };
-};
-
-int Board::getRadius()
-{
-    int rad = 0;
-    Position origin({0, 0, 0, 0});
-
-    for (Piece *piece: getAllPieces())
-    {
-        rad = std::max(rad, origin.findDistance(piece));
-    };
-
-    return rad;
+    return info.articulations; // the _OneHiveInfo object accumulates articulation vertices - return those
 };
 
 
@@ -463,16 +209,17 @@ void Board::_pinSearch(std::vector<int> &parent, std::vector<int> &location, _On
 // This is an implementation of a linear-time articulation vertext discovery algorithm described here:
 // https://cp-algorithms.com/graph/cutpoints.html
 {
-    
-    // increment our timer and update our contextual information about this node
     Position current(location);
+
     int children = 0; // child count of current node
+    std::vector<int> rootParent {-1, -1, -1, -1};
+
+    // update the _OneHiveInfo structure
     info->time++;
     info->visited[location] = true;
     info->entryTime[location] = info->time;
     info->earliestTime[location] = info->time;
-    std::vector<int> rootParent {-1, -1, -1, -1};
-
+    
     // iterate through every adjacency
     std::vector<std::vector<int>> adj = adjacencies(&current);
     for (std::vector<int> a: adj)
@@ -504,16 +251,363 @@ void Board::_pinSearch(std::vector<int> &parent, std::vector<int> &location, _On
         };
     };
 
+    // finally, if this is the root and it has more than one child, the root itself is an articulation vertex
     if (parent == rootParent && children > 1)
     {
         info->articulations.insert(location);
     };
 };
 
+
+std::vector<int> Board::getCenter()
+// This returns an integer hex coordinate coordinate close to the true centroid of the board
+// It does not necessarily return the closest coordinate to the centroid due to flooring effect of integer division
+// only returns x,y,z <- TODO: Should this return a full xyzv coordinate?
+{
+    // throw an error if the board is empty
+    if (empty())
+    {
+        throw std::runtime_error("Cannot find the center of an empty board");
+    };
+
+    int i;
+    std::vector<int> centroid {0, 0, 0};
+    std::vector<Piece*> pieces;
+
+    // accumulate all coordinate values in the centroid
+    for (Piece *piece: pieces)
+    {
+        for (i = 0; i < 2; i++)
+        {
+            centroid[i] += piece->getCoords()[i];
+        };
+    };
+
+    // divide x and y by the number of coordinates accumulated, then adjust z to ensure validity
+    centroid[0] /= count;
+    centroid[1] /= count;
+    centroid[2] = -(centroid[0] + centroid[1]);
+
+    return centroid;
+
+};
+
+
+int Board::getRadius()
+// the radius here is defined as the longest hex-tile distance between the origin and any other piece on the board
+{
+    int radius = 0;
+    Position origin({0, 0, 0, 0});
+
+    for (Piece *piece: getAllPieces())
+    {
+        radius = std::max(radius, origin.findDistance(piece));
+    };
+
+    return radius;
+};
+
+
+void Board::update(LabelMove &move, bool reversible)
+{
+    Piece *target;
+    Piece *underPiece;
+    std::vector<int> outer;
+    std::vector<int> newCoords;
+    std::vector<int> underCoords;
+    
+    // If this is a move forward in time, store a move which lets us reverse it
+    if (reversible)
+    {
+        _storeUndo(move);
+    };
+
+    // we don't need to do anything for a pass move
+    if (!move.pass)
+    {
+        // if this is not a new piece placement (is a normal move), do this
+        if (!move.newPiece)
+        {
+            std::vector<int> oldCoords;
+
+            // find the starting and ending coordinates of the move
+            target = find(move.from);
+            oldCoords = target->getCoords();
+            newCoords = find(move.to)->getNeighbor(move.direction);
+            newCoords = top(newCoords);
+            if (find(newCoords) != nullptr)
+            {
+                newCoords[3]++; // if we are moving to a location where a piece is already present, increment v by 1
+            };
+            target->setCoords(newCoords);
+
+            // add the new coordinate mapping
+            outer = {newCoords[0], newCoords[1], newCoords[2]};
+            _coordsToPiece[outer][newCoords[3]] = target;
+            
+            // erase old coordinate mapping
+            outer = {oldCoords[0], oldCoords[1], oldCoords[2]};
+            // this leaves behind the x ,y, z key but breaks searches to full coords by removing v
+            _coordsToPiece[outer].erase(oldCoords[3]);
+
+            // track topping
+            if (newCoords[3] > 0)
+            {
+                underCoords = newCoords;
+                underCoords[3]--;
+                underPiece = find(underCoords);
+
+                // if we could not find an underPiece, we are attempting to move a piece floating in midair, so throw an error
+                if (underPiece == nullptr)
+                {
+                    throw (std::runtime_error("No piece found beneath elevated piece: " + move.from));
+                }
+                else
+                {
+                    underPiece->isTopped = true;
+                };
+            };
+
+            if (oldCoords[3] > 0)
+            {
+                underCoords = oldCoords;
+                underCoords[3]--;
+                underPiece = find(underCoords);
+
+                // if we could not find an underPiece, we are attempting to move a piece floating in midair, so throw an error
+                if (underPiece == nullptr)
+                {
+                    throw (std::runtime_error("No piece found beneath elevated piece: " + move.from));
+                }
+                else
+                {
+                    underPiece->isTopped = true;
+                };
+            };
+        }
+        // if this is a placement of a new piece, do this
+        else
+        {
+            // if this is the first piece of the game, do this
+            if (!move.firstPiece)
+            {
+                newCoords = find(move.to)->getNeighbor(move.direction);
+                target = new Piece(newCoords, move.code, move.from);
+
+                outer = {newCoords[0], newCoords[1], newCoords[2]};
+                _coordsToPiece[outer][newCoords[3]] = target;
+
+                _labelToPiece[move.from] = target;
+            }
+            // otherwise, do this
+            else
+            {
+                newCoords = {0, 0, 0, 0};
+                target = new Piece(newCoords, move.code, move.from);
+
+                outer = {newCoords[0], newCoords[1], newCoords[2]};
+                _coordsToPiece[outer][newCoords[3]] = target;
+
+                _labelToPiece[move.from] = target;
+            };
+
+            count++;
+            counts[move.code]++;
+
+            // queen status update
+            if (move.code == PieceCodes::wQ)
+            {
+                wQueen = true;
+            }
+            else if (move.code == PieceCodes::bQ)
+            {
+                bQueen = true;
+            };
+        };
+    };
+};
+
+
+void Board::_storeUndo(LabelMove &move)
+{   
+    // if this is a piece placement or a pass move, store the move as is.
+    // this will be used by Board::undoLast to remove the placed piece or ignore a pass
+    if (move.newPiece || move.pass)
+    {
+        _undoCache.push_back(move);
+    }
+    // otherwise, if this is a regular move, store the reverse of the move to be passed to
+    // Board::update by Board::undoLast
+    else
+    {
+        Piece *target = find(move.from); 
+        Piece *oldNeighbor = nullptr;
+
+        bool found = false;
+
+        for (int i = 0; i < 6; i++)
+        {
+            oldNeighbor = find(target->getNeighbor(i));
+            
+            if (oldNeighbor != nullptr)
+            {
+                int reverseDirection = (3 + i) % 6;
+                LabelMove reverseMove(target->label, oldNeighbor->label, reverseDirection);
+                _undoCache.push_back(reverseMove); // TODO: std::move?
+                found = true;
+                break;
+            };   
+        };
+
+        // Throw an error if we were unable to find a reference point for the piece's original location
+        if (!found) 
+        { 
+            throw(std::runtime_error("Cannot store reverse of a move without a reference point: " + move.toString()));
+        };
+    };
+};
+
+
+void Board::remove(std::string pieceLabel)
+{
+    Piece *target = find(pieceLabel);
+    std::vector<int> coords = target->getCoords();
+    std::vector<int> outer {coords[0], coords[1], coords[2]};
+
+    // if this piece is elevated, remove update topping of piece below it
+    if (coords[3] > 0)
+    {
+        std::vector<int> underCoords = coords;
+        underCoords[3]--;
+        Piece *underPiece = find(underCoords); // DEBUG: letting this fail for now when given junk underCoords
+        underPiece->isTopped = false;
+    };
+    
+    // this leaves behind the x ,y, z key but breaks searches to full coords by removing v
+    _coordsToPiece[outer].erase(coords[3]);
+    _labelToPiece.erase(pieceLabel);
+
+    // update counts
+    count--;
+    counts[target->code]--;
+
+    // update queen status
+    if (pieceLabel == "wQ")
+    {
+        wQueen = false;
+    }
+    else if (pieceLabel == "bQ")
+    {
+        bQueen = false;
+    };
+
+    // delete the piece to prevent memory leakage
+    delete target;
+};
+
+
+void Board::undoLast()
+{
+    // remember, undo moves are not the move history
+    // they are either the reverse of a regular move or a placement move which provides a removal target
+    LabelMove &undo = _undoCache.back();
+
+    // don't do anything for pass moves, Engine will handle turn and player
+    if (!undo.pass)
+    {
+        // if this is a new piece, we simply have to remove the piece it points to
+        if (undo.newPiece)
+        {
+            remove(undo.from);
+        } 
+        // if this is a regular move, undo shows us how to reverse it
+        else
+        {
+            update(undo, false); // undo moves themselves should not be placed in the _undoCache
+        };
+    };
+
+    _undoCache.pop_back();
+};
+
+
+LabelMove Board::getLastUndo()
+{
+    if (_undoCache.empty())
+    {
+        return LabelMove(); // return a non-move if there's nothing in the undo cache
+    }
+    else
+    {
+        return _undoCache.back();
+    };
+};
+
+
+void Board::recenter(std::vector<int> &centroid)
+{
+    int i;
+    std::vector<int> outer;
+    std::vector<int> coords;
+
+    std::vector<Piece*> pieces = getAllPieces();
+
+    // all existing coord->piece mappings are about to be invalidated, so clear them
+    _coordsToPiece.clear();
+
+    for (Piece *piece: pieces)
+    {
+        coords = piece->getCoords();
+        for (i = 0; i < 3; i++)
+        {
+            coords[i] -= centroid[i]; // subtract the centroid from every piece's coordinate vector
+        };
+        piece->setCoords(coords);
+
+        // update _coordsToPiece with the new coordinate
+        outer = {coords[0], coords[1], coords[2]};
+        _coordsToPiece[outer][coords[3]] = piece;
+    }; 
+};
+
+
+bool Board::empty()
+{
+    return count == 0;
+};
+
+
+void Board::clear()
+// flip the (proverbial, not literal) table
+{
+    _clearPieces();
+    _labelToPiece.clear();
+    _coordsToPiece.clear();
+    _undoCache.clear();
+    count = 0;
+    counts.clear();
+    wQueen = false;
+    bQueen = false;
+};
+
+
+std::string Board::nextLabel(int code)
+// return the next valid label for a given piece code on the board
+// note that this doesn't inherently check against a piece configuration
+{
+    std::string label = PieceNames[code];
+
+    if (code % 5 != 0)
+    {
+        label += std::to_string(counts[code] + 1);
+    }
+    return label;
+};
+
+
 int Board::checkGameState()
 {
     // check for empty
-    
     if (empty()) { return 0; };
 
     // else
@@ -522,6 +616,7 @@ int Board::checkGameState()
     bool bCapture = false;
     std::vector<std::vector<int>> adj;
 
+    // if all of a queen's adjacencies are filled, set the corresponding capture flag
     if (wQueen)
     {
         adj = adjacencies("wQ");
@@ -540,7 +635,7 @@ int Board::checkGameState()
         };
     };
 
-    // enum for organization?
+    // TODO: Figure out how to use the gamestate enum defined in Engine (should just move to Board.h)
     if (bCapture && wCapture)
     {
         return 2;
@@ -559,38 +654,8 @@ int Board::checkGameState()
     };
 };
 
-// board scoring
 
-int Board::checkMateScore = 100000;
-
-int Board::drawScore = 1;
-
-std::vector<std::vector<int>> Board::baseScores
-{
-    {0, 10, 10, 20, 20, 30, 30, 100, 100, 100, 100}, // Queen
-    {0, 0, 0, 0, 0, 10, 10, 20, 20, 30, 30}, // Ant
-    {0, 10, 10, 20, 20, 20, 20, 20, 20, 30, 30}, // Beetle
-    {0, 10, 10, 10, 20, 30, 30, 20, 20, 20, 20}, // Hopper
-    {0, 30, 30, 30, 30, 20, 20, 20, 10, 10, 10}, // Spider
-};
-
-std::vector<std::vector<int>> Board::offScores
-{
-    {0, -50, -30},
-    {0, 40, 0},
-    {250, 80, 0},
-    {0, 30, 0},
-    {0, 40, 0}
-};
-
-std::vector<std::vector<int>> Board::defScores
-{
-    {0, 0, 0},
-    {0, 20, 0},
-    {0, 30, 20},
-    {0, 30, 0},
-    {0, 10, 0}
-};
+/* Board Scoring Constants and Functionality */
 
 int Board::score(bool white)
 {
@@ -601,11 +666,11 @@ int Board::score(bool white)
     switch (gameState)
     {
         case 2:
-            return drawScore;
+            return Scores::drawScore;
         case 3:
-            return sign * checkMateScore;
+            return sign * Scores::checkMateScore;
         case 4:
-            return sign * -checkMateScore;
+            return sign * -Scores::checkMateScore;
         default:
             break;
     };
@@ -670,7 +735,7 @@ int Board::score(bool white)
         if (p->white)
         {
             // add base score
-            tempScore += count < 10 ? baseScores[p->code % 5][count] : baseScores[p->code % 5][10];
+            tempScore += count < 10 ? Scores::baseScores[p->code % 5][count] : Scores::baseScores[p->code % 5][10];
 
             // offensive scores
             if (bQueen)
@@ -678,7 +743,7 @@ int Board::score(bool white)
                 distance = p->findDistance(find("bQ"));
                 if (distance < 3)
                 {
-                    tempScore += offScores[p->code % 5][distance];
+                    tempScore += Scores::offScores[p->code % 5][distance];
                 };
             };
 
@@ -688,20 +753,20 @@ int Board::score(bool white)
                 distance = p->findDistance(find("wQ"));
                 if (distance < 3)
                 {
-                    tempScore += defScores[p->code % 5][distance];
+                    tempScore += Scores::defScores[p->code % 5][distance];
                 };
             };
         }
         else
         {
-            tempScore -= count < 10 ? baseScores[p->code % 5][count] : baseScores[p->code % 5][10];
+            tempScore -= count < 10 ? Scores::baseScores[p->code % 5][count] : Scores::baseScores[p->code % 5][10];
 
             if (wQueen)
             {
                 distance = p->findDistance(find("wQ"));
                 if (distance < 3)
                 {
-                    tempScore -= offScores[p->code % 5][distance];
+                    tempScore -= Scores::offScores[p->code % 5][distance];
                 };
             };
 
@@ -710,7 +775,7 @@ int Board::score(bool white)
                 distance = p->findDistance(find("bQ"));
                 if (distance < 3)
                 {
-                    tempScore -= defScores[p->code % 5][distance];
+                    tempScore -= Scores::defScores[p->code % 5][distance];
                 };
             };
         };
@@ -725,6 +790,31 @@ int Board::score(bool white)
 
     return sign * score;
 };
+
+void Board::_clearPieces()
+{
+    std::vector<Piece*> toDelete;
+    std::vector<Piece*>::iterator deleteIt;
+    std::map<std::string, Piece*>::iterator labelIt;
+
+    for (labelIt = _labelToPiece.begin(); labelIt != _labelToPiece.end(); labelIt++)
+    {
+        toDelete.push_back(labelIt->second);
+    };
+
+    for (deleteIt = toDelete.begin(); deleteIt != toDelete.end(); deleteIt++)
+    {
+        delete *deleteIt;
+    };
+};
+
+Board::~Board()
+{
+    _clearPieces();
+};
+
+
+/* DEBUGGING CODE BEYOND THIS POINT */
 
 std::string Board::coordsMapToString()
 {
@@ -750,27 +840,7 @@ std::string Board::coordsMapToString()
     return repr;
 };
 
-void Board::_clearPieces()
-{
-    std::vector<Piece*> toDelete;
-    std::vector<Piece*>::iterator deleteIt;
-    std::map<std::string, Piece*>::iterator labelIt;
 
-    for (labelIt = _labelToPiece.begin(); labelIt != _labelToPiece.end(); labelIt++)
-    {
-        toDelete.push_back(labelIt->second);
-    };
-
-    for (deleteIt = toDelete.begin(); deleteIt != toDelete.end(); deleteIt++)
-    {
-        delete *deleteIt;
-    };
-};
-
-Board::~Board()
-{
-    _clearPieces();
-};
 
 
 

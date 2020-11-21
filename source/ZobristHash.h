@@ -36,7 +36,7 @@ class ZobristHash
         unsigned long int hash;
 
         /* Constructors */
-        ZobristHash() { hash = 6543; };
+        ZobristHash() {};
         ZobristHash(std::map<int, int>);
 
         /* Hash Manipulators */
@@ -59,7 +59,7 @@ class ZobristHash
         ZobristTable _bitTable;
         
         /* Misc */
-        // Incremememt the PRNG
+        // Incrementt the PRNG
         unsigned long int _getNextRand();
         // Initialize the ZobristTable
         void _initTable(std::map<int, int>);

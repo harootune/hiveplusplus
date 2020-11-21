@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <regex>
 
-Engine::Engine(std::map<int, int> pieceConfig)
+Engine::Engine(std::map<int, int> pieceConfig): _defaultDepth(1000000)
 {
     turn = 0;
     white = true;   
@@ -17,313 +17,70 @@ Engine::Engine(std::map<int, int> pieceConfig)
 };
 
 
-void Engine::makeMove(LabelMove &move)
+std::vector<LabelMove> Engine::genAllMoves()
 {
-    // DEBUG
-    // std::cout << "MAKING MOVE: " << move.toString() << std::endl;
-    // std::cout << "HISTORY BEFORE MOVE: " << toString() << std::endl;
-    // std::cout << "COORDINATE MAP BEFORE MOVE: " << toCoordString() << std::endl;
-    
-    Piece *target;
-    Position origin({0, 0, 0, 0});
+    std::vector<LabelMove> moves;
+    std::vector<Piece*> genTargets;
+    std::vector<Piece*>::iterator targetIt;
+    std::vector<LabelMove> genResults;
 
-    if (!move.newPiece && !move.pass)
+    // get placement moves
+    genResults = _genPlacementMoves();
+    moves.insert(moves.end(), genResults.begin(), genResults.end());
+
+    if ((white && _board.wQueen) || // if white + wQ on board
+        (!white && _board.bQueen)) // or black + bQ on board, add piece movement
     {
-        target = _board.find(move.from);
-        _hash.invertPiece(target->getCoords(), move.code); // before move
-    };
+        genTargets = _board.getColorPieces(white);
 
-    history.push_back(move.toString());
-    _board.update(move);
-    gamestate = _board.checkGameState();
-    turn++;
-    white = !white;
-    _hash.invertColor();
-
-    if (!move.pass)
-    {
-        target = _board.find(move.from);
-        _hash.invertPiece(target->getCoords(), move.code); // after move
-        
-        if (target->findDistance(&origin) == _hash.radius)
+        if (!genTargets.empty())
         {
-            _recenter();
-        };
-    };
-    
-    // DEBUG
-    // std::cout << "HISTORY AFTER MOVE: " << toString() << std::endl;
-    // std::cout << "COORDINATE MAP AFTER MOVE: " << toCoordString() << std::endl;
-};
-
-
-void Engine::makeMove(std::string moveString)
-{
-    LabelMove tempMove = stringToMove(moveString);
-    makeMove(tempMove);
-};
-
-
-void Engine::undoLast()
-{
-    LabelMove undo = _board.getLastUndo();
-
-    // DEBUG
-    // std::cout << "UNDOING MOVE: " << undo.toString() << std::endl;
-    // std::cout << "HISTORY BEFORE UNDO: " << toString() << std::endl;
-    // std::cout << "COORDINATE MAP BEFORE UNDO: " << toCoordString() << std::endl;
-
-    if (!undo.pass)
-    {
-        _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
-    };
-
-    history.pop_back();
-    _board.undoLast();
-    gamestate = _board.checkGameState();
-    turn--;
-    white = !white;
-    _hash.invertColor();
-
-    if (!undo.newPiece && !undo.pass)
-    {
-        _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
-    };
-
-    // DEBUG
-    // std::cout << "HISTORY AFTER UNDO: " << toString() << std::endl;
-    // std::cout << "COORDINATE MAP UNDO: " << toCoordString() << std::endl;
-};
-
-
-int Engine::score()
-{
-    return _board.score(white);
-};
-
-
-LabelMove *Engine::validateMove(LabelMove *move)
-{
-    Piece *onBoard = _board.find(move->from);
-
-    if (*move == _labelNonMove)
-    {
-        return nullptr;
-    };
-
-    if (move->pass)
-    {
-        std::vector<LabelMove> moves = genAllMoves();
-        if (moves[0] == *move) // if there are no moves available, genAllMoves returns a vector with a pass move as its only member
-        {
-            return move;
-        }
-        else
-        {
-            return nullptr; // if there is a choice to move, disallow passing
-        };
-    };
-
-    if ((!white && move->code < PieceCodes::bQ) ||
-        (white && move->code >= PieceCodes::bQ))
-    {
-        return nullptr;
-    };
-
-    //Is this asking us to place a piece which is already on the board?
-    if (move->newPiece)
-    {
-        // if a piece with this label is on the board, do this
-        if (onBoard != nullptr)
-        {
-            // if there are still more pieces in this category to place, do this
-            if (_pieceConfig[move->code] - _board.counts[move->code] > 0)
-            {
-                // update the from label with the next valid label
-                move->from = _board.nextLabel(move->code);
-            }
-            else
-            {
-                // otherwise, return nullptr
-                return nullptr;
-            };
-        }
-        else if (move->from != _board.nextLabel(move->code))
-        {
-            move->from = _board.nextLabel(move->code);
-        };
-
-        // check to see if this is a valid placement move
-        PositionMove check;
-        PositionMove candidate = Utils::toPositionMove(*move, _board);
-        std::vector<LabelMove> placements = _genPlacementMoves();
-
-        for (LabelMove m: placements)
-        {
-            check = Utils::toPositionMove(m, _board);
-
-            if (check == candidate)
-            {
-                return move;
-            };
-        };
-
-        return nullptr;
-    }
-    else
-    {
-        if ((!_board.wQueen && move->code < PieceCodes::bQ) ||
-            (!_board.bQueen && move->code >= PieceCodes::bQ))
-        {
-            return nullptr;
-        };
-
-        if (onBoard != nullptr)
-        {
-            if (onBoard->isTopped)
-            {
-                return nullptr;
-            };
-            
+            Piece *current;
+            targetIt = genTargets.begin();
             std::set<std::vector<int>> pinned = _board.getPinned();
-            if (pinned.find(onBoard->getCoords()) != pinned.end())
+
+            for (; targetIt != genTargets.end(); targetIt++) // maybe convert
             {
-                return nullptr;
-            };
-
-
-            std::vector<LabelMove> possibleMoves;
-            switch (move->code % 5)
-            {
-                case PieceCodes::wQ:
-                    possibleMoves = _genQueenMoves(move->from);
-                    break;
-                case PieceCodes::wA:
-                    possibleMoves = _genAntMoves(move->from);
-                    break;
-                case PieceCodes::wB:
-                    possibleMoves = _genBeetleMoves(move->from);
-                    break;
-                case PieceCodes::wG:
-                    possibleMoves = _genHopperMoves(move->from);
-                    break;
-                case PieceCodes::wS:
-                    possibleMoves = _genSpiderMoves(move->from);
-                    break;
-                default:
-                    std::cout << "err Invalid piece code detected in validateMove" << std::endl;
-                    return nullptr;
-                    break;
-            };
-
-            PositionMove check;
-            PositionMove candidate = Utils::toPositionMove(*move, _board);
-
-            for (LabelMove m: possibleMoves)
-            {
-                check = Utils::toPositionMove(m, _board);
-
-                if (check == candidate)
-                {
-                    return move;
-                };
-            };
-            
-            return nullptr;
-        }
-        else
-        {
-            return nullptr;
-        };
-    };
-};
-
-LabelMove Engine::stringToMove(std::string moveString)
-{
-    // maybe regex check to start?s
-
-    std::vector<std::string> components = Utils::tokenize(moveString, ' '); // need a better whitespace check
+                current = *targetIt;
     
-    // a failed tokenization returns a vector containing a single empty string
-    if (components[0] == "")
-    {  
-        // throw some error - this should never occur unless makeMove is called by something without a regex check
-        std::cout << "err Empty movestring detected in Board::_stringToMove" << std::endl;
-        return LabelMove();
-    }
-    else
-    {
-        // this is a first move or a pass move
-        if (components.size() == 1)
-        {
-            return LabelMove(components[0]);
-        }
-        // this is a normal move
-        else
-        {
-            int direction = -1;
-            int labelLength = 3;
-            std::string destination = "";
-            bool newPiece = _board.find(components[0]) == nullptr;
-
-            // queen check
-            std::regex pattern("[bw]Q");
-            if (std::regex_search(components[1], pattern) == true)
-            {
-                labelLength = 2;
-            };
-
-            // find direction if direction symbol precedes the destination piece
-            switch (components[1][0])
-            {
-                case '\\':
-                    direction = Directions::UpLeft;
-                    destination = components[1].substr(1, labelLength);
-                    break;
-                case '-':
-                    direction = Directions::Left;
-                    destination = components[1].substr(1, labelLength);
-                    break; 
-                case '/':
-                    direction = Directions::DownLeft;
-                    destination = components[1].substr(1, labelLength);
-                    break; 
-                default:
-                    break;
-            };
-            // find direction if direction symbol comes after the destination piece
-            if (destination == "")
-            {
-                switch (components[1][labelLength])
+                // universal checks
+                if (pinned.find(current->getCoords()) == pinned.end() && !current->isTopped)
                 {
-                    case '\\':
-                        direction = Directions::DownRight;
-                        destination = components[1].substr(0, labelLength);
-                        break;
-                    case '-':
-                        direction = Directions::Right;
-                        destination = components[1].substr(0, labelLength);
-                        break; 
-                    case '/':
-                        direction = Directions::UpRight;
-                        destination = components[1].substr(0, labelLength);
-                        break; 
-                    default:
-                        break;
+                    switch (current->code % 5)
+                    {
+                        case 0:
+                            genResults = _genQueenMoves(current->label);
+                            break;
+                        case 1:
+                            genResults = _genAntMoves(current->label);
+                            break;
+                        case 2:
+                            genResults = _genBeetleMoves(current->label);
+                            break;
+                        case 3:
+                            genResults = _genHopperMoves(current->label);
+                            break;
+                        case 4:
+                            genResults = _genSpiderMoves(current->label);
+                            break;
+                        default:
+                            // throw some error
+                            std::cout << "err Invalid code detected in genAllMoves." << std::endl;
+                    };
+                    moves.insert(moves.end(), genResults.begin(), genResults.end());
                 };
             };
-            
-            // Malformed moveString
-            if (direction == -1)
-            {
-                return _labelNonMove;
-            };
-            
-            destination = Utils::strip(destination);
-            return LabelMove(components[0], destination, direction, newPiece);
         };
     };
+
+    if (moves.empty())
+    {
+        moves.push_back(LabelMove("pass"));
+    };
+
+    return moves;
 };
+
 
 std::vector<LabelMove> Engine::_genPlacementMoves()
 {
@@ -662,87 +419,84 @@ std::vector<LabelMove> Engine::_genSpiderMoves(std::string label)
 };
 
 
-std::vector<LabelMove> Engine::genAllMoves()
+void Engine::makeMove(LabelMove &move)
 {
-    std::vector<LabelMove> moves;
-    std::vector<Piece*> genTargets;
-    std::vector<Piece*>::iterator targetIt;
-    std::vector<LabelMove> genResults;
-
-    // get placement moves
-    genResults = _genPlacementMoves();
-    moves.insert(moves.end(), genResults.begin(), genResults.end());
-
-    if ((white && _board.wQueen) || // if white + wQ on board
-        (!white && _board.bQueen)) // or black + bQ on board, add piece movement
-    {
-        genTargets = _board.getColorPieces(white);
-
-        if (!genTargets.empty())
-        {
-            Piece *current;
-            targetIt = genTargets.begin();
-            std::set<std::vector<int>> pinned = _board.getPinned();
-
-            for (; targetIt != genTargets.end(); targetIt++) // maybe convert
-            {
-                current = *targetIt;
+    // DEBUG
+    // std::cout << "MAKING MOVE: " << move.toString() << std::endl;
+    // std::cout << "HISTORY BEFORE MOVE: " << toString() << std::endl;
+    // std::cout << "COORDINATE MAP BEFORE MOVE: " << toCoordString() << std::endl;
     
-                // universal checks
-                if (pinned.find(current->getCoords()) == pinned.end() && !current->isTopped)
-                {
-                    switch (current->code % 5)
-                    {
-                        case 0:
-                            genResults = _genQueenMoves(current->label);
-                            break;
-                        case 1:
-                            genResults = _genAntMoves(current->label);
-                            break;
-                        case 2:
-                            genResults = _genBeetleMoves(current->label);
-                            break;
-                        case 3:
-                            genResults = _genHopperMoves(current->label);
-                            break;
-                        case 4:
-                            genResults = _genSpiderMoves(current->label);
-                            break;
-                        default:
-                            // throw some error
-                            std::cout << "err Invalid code detected in genAllMoves." << std::endl;
-                    };
-                    moves.insert(moves.end(), genResults.begin(), genResults.end());
-                };
-            };
+    Piece *target;
+    Position origin({0, 0, 0, 0});
+
+    if (!move.newPiece && !move.pass)
+    {
+        target = _board.find(move.from);
+        _hash.invertPiece(target->getCoords(), move.code); // before move
+    };
+
+    history.push_back(move.toString());
+    _board.update(move);
+    gamestate = _board.checkGameState();
+    turn++;
+    white = !white;
+    _hash.invertColor();
+
+    if (!move.pass)
+    {
+        target = _board.find(move.from);
+        _hash.invertPiece(target->getCoords(), move.code); // after move
+        
+        if (target->findDistance(&origin) == _hash.radius)
+        {
+            _recenter();
         };
     };
-
-    if (moves.empty())
-    {
-        moves.push_back(LabelMove("pass"));
-    };
-
-    return moves;
+    
+    // DEBUG
+    // std::cout << "HISTORY AFTER MOVE: " << toString() << std::endl;
+    // std::cout << "COORDINATE MAP AFTER MOVE: " << toCoordString() << std::endl;
 };
 
-void Engine::_recenter()
+
+void Engine::makeMove(std::string moveString)
 {
-    std::vector<int> centroid = _board.getCenter();
-    std::vector<Piece*> pieces = _board.getAllPieces();
-
-    for (Piece *piece: pieces)
-    {
-        _hash.invertPiece(piece->getCoords(), piece->code);
-    };
-
-    _board.recenter(centroid);
-
-    for (Piece *piece: pieces)
-    {
-        _hash.invertPiece(piece->getCoords(), piece->code);
-    };
+    LabelMove tempMove = stringToMove(moveString);
+    makeMove(tempMove);
 };
+
+
+void Engine::undoLast()
+{
+    LabelMove undo = _board.getLastUndo();
+
+    // DEBUG
+    // std::cout << "UNDOING MOVE: " << undo.toString() << std::endl;
+    // std::cout << "HISTORY BEFORE UNDO: " << toString() << std::endl;
+    // std::cout << "COORDINATE MAP BEFORE UNDO: " << toCoordString() << std::endl;
+
+    if (!undo.pass)
+    {
+        _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+    };
+
+    history.pop_back();
+    _board.undoLast();
+    gamestate = _board.checkGameState();
+    turn--;
+    white = !white;
+    _hash.invertColor();
+
+    if (!undo.newPiece && !undo.pass)
+    {
+        _hash.invertPiece(_board.find(undo.from)->getCoords(), undo.code);
+    };
+
+    // DEBUG
+    // std::cout << "HISTORY AFTER UNDO: " << toString() << std::endl;
+    // std::cout << "COORDINATE MAP UNDO: " << toCoordString() << std::endl;
+};
+
 
 LabelMove Engine::recommendMove(int depth, int duration)
 {
@@ -759,7 +513,7 @@ LabelMove Engine::recommendMove(int depth, int duration)
 
     for (int i = 1; i <= depth; i++)
     {
-        killerMoves.push_back(_positionNonMove);
+        killerMoves.push_back(ReservedMoves::positionNonMove);
         bestMove = _negaMax(alpha, beta, i, duration, start, killerMoves);
         std::cout << "note Best move at depth " << i << ": " << bestMove.toString() << std::endl;
 
@@ -772,16 +526,17 @@ LabelMove Engine::recommendMove(int depth, int duration)
     _hash.changeDepth(_defaultDepth);
 
     // DEBUG TIMER
-    std::cout << "TIME ELAPSED: " << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() << 'S' << std::endl;
+    // std::cout << "TIME ELAPSED: " << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() << 'S' << std::endl;
 
     return bestMove;
 };
+
 
 LabelMove Engine::_negaMax(int alpha, int beta, int maxDepth, int duration, 
                             std::chrono::time_point<std::chrono::high_resolution_clock> &start,  
                             std::vector<PositionMove> &killerMoves)
 {
-    PositionMove tableMove = _positionNonMove;
+    PositionMove tableMove = ReservedMoves::positionNonMove;
     std::vector<int> transformKey;
     LabelMove best;
     int val;
@@ -791,21 +546,21 @@ LabelMove Engine::_negaMax(int alpha, int beta, int maxDepth, int duration,
 
     _hash.changeDepth(maxDepth);
 
-    transformKey = _findTransposedRotation(maxDepth, 0);
+    transformKey = _findTransformationKey(maxDepth, 0);
 
     if (!transformKey.empty())
     {
         tableMove = _findExactTransposition(transformKey);
-        if (tableMove != _positionNonMove)
+        if (tableMove != ReservedMoves::positionNonMove)
         {
-            std::cout << "EXACT TRANSPOSITION" << std::endl; // DEBUG
+            // std::cout << "EXACT TRANSPOSITION" << std::endl; // DEBUG
             return Utils::toLabelMove(tableMove, _board);
         };
 
         std::vector<LabelMove> tableMoves = _findAdjacentTranspositions(transformKey, maxDepth, 0);
         for (LabelMove move: tableMoves)
         {
-            std::cout << "ADJACENT TRANSPOSITION" << std::endl; // DEBUG
+            // std::cout << "ADJACENT TRANSPOSITION" << std::endl; // DEBUG
             moves.push_back(move); // could be a std::move I think
         };
     };
@@ -851,13 +606,14 @@ LabelMove Engine::_negaMax(int alpha, int beta, int maxDepth, int duration,
     return best;
 };
 
+
 int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int duration, 
                             std::chrono::time_point<std::chrono::high_resolution_clock> &start, 
                             std::vector<PositionMove> &killerMoves)
 {
     if (gamestate > GameStates::InProgress || depth == maxDepth)
     {
-        return score();    
+        return _board.score(white);    
     };
     
     int val = -1000000;
@@ -865,7 +621,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
     bool failHigh = false;
     bool early = false;
     LabelMove best;
-    PositionMove tableMove = _positionNonMove;
+    PositionMove tableMove = ReservedMoves::positionNonMove;
     std::vector<int> transformKey;
     std::vector<LabelMove> moves = genAllMoves();
     std::vector<LabelMove>::reverse_iterator moveIt;
@@ -873,27 +629,27 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
     _hash.changeDepth(maxDepth-depth);
 
     // check if any exact or adjacent transposition of any transformation exists in the trans table
-    transformKey = _findTransposedRotation(maxDepth, depth);
+    transformKey = _findTransformationKey(maxDepth, depth);
     
     // if a transformKey was found, check for an exact transposition at that transformation
     if (!transformKey.empty())
     {
         tableMove = _findExactTransposition(transformKey);
-        if (tableMove != _positionNonMove)
+        if (tableMove != ReservedMoves::positionNonMove)
         {
-            std::cout << "EXACT TRANSPOSITION" << std::endl; // DEBUG
+            // std::cout << "EXACT TRANSPOSITION" << std::endl; // DEBUG
             return tableMove.score;
         };
     };
 
     // find a killer move, if any
-    if (killerMoves[depth] != _positionNonMove)
+    if (killerMoves[depth] != ReservedMoves::positionNonMove)
     {
         LabelMove killer = Utils::toLabelMove(killerMoves[depth], _board);
         LabelMove *killerRef = validateMove(&killer);
         if (killerRef != nullptr)
         {
-            std::cout << "LEGAL KILLER" << std::endl; // DEBUG
+            // std::cout << "LEGAL KILLER" << std::endl; // DEBUG
             moves.push_back(killer);
         };
     };
@@ -904,7 +660,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
         std::vector<LabelMove> tableMoves = _findAdjacentTranspositions(transformKey, maxDepth, depth);
         for (LabelMove move: tableMoves)
         {
-            std::cout << "ADJACENT TRANSPOSITION" << std::endl; // DEBUG
+            // std::cout << "ADJACENT TRANSPOSITION" << std::endl; // DEBUG
             moves.push_back(move); // could be a std::move I think
         };
     };
@@ -928,7 +684,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
 
         if (alpha >= beta)
         {
-            std::cout << "FAILED HIGH" << std::endl; // DEBUG
+            // std::cout << "FAILED HIGH" << std::endl; // DEBUG
             failHigh = true;
             killerMoves[depth] = Utils::toPositionMove(*moveIt, _board);
             break;  
@@ -961,6 +717,7 @@ int Engine::_negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int dur
 
     return val;
 };
+
 
 std::string Engine::toString()
 {
@@ -1006,258 +763,6 @@ std::string Engine::toString()
     return repr.substr(0, repr.size()-1);
 };
 
-void Engine::_rotate(std::vector<int> &coords)
-{
-    int temp;
-    temp = coords[0];
-    coords[0] = -coords[2];
-    coords[2] = -coords[1];
-    coords[1] = -temp;
-};
-
-void Engine::_mirror(std::vector<int> &coords)
-{
-    int temp;
-    temp = coords[1];
-    coords[0] = -coords[0];
-    coords[1] = -coords[2];
-    coords[2] = -temp;
-};
-
-void Engine::_applyTransformation(std::vector<int> &coords, std::vector<int> &transformation, bool reverse)
-{
-    if (reverse)
-    {   
-        int position;
-        int sign;
-        std::vector<int> result(3, 0);
-
-        for (int i = 0; i < 3; i++)
-        {
-            position = std::abs(transformation[i]);
-            sign = transformation[i] < 0 ? -1 : 1;
-            result[position - 1] = sign * (i + 1);
-        };
-
-        _applyTransformation(coords, result);
-    }
-    else
-    {
-        std::vector<int> temp;
-        std::vector<int> signs;
-        std::vector<int> positions;
-        for (int el: transformation)
-        {
-            signs.push_back(el < 0 ? -1 : 1);
-            positions.push_back(std::abs(el) - 1);
-        };
-
-        temp = {signs[0] * coords[positions[0]], 
-                signs[1] * coords[positions[1]], 
-                signs[2] * coords[positions[2]]};
-
-        for (int i = 0; i < 3; i++)
-        {
-            coords[i] = temp[i];
-        };
-    };
-};
-
-
-std::vector<int> Engine::_findTransposedRotation(int maxDepth, int currentDepth)
-{
-    PositionMove *target;
-
-    unsigned long int originalHash = _hash.hash;
-    std::vector<Piece*> pieces = _board.getAllPieces();
-    std::vector<std::vector<int>> coords;
-    for (Piece *piece: pieces)
-    {
-        coords.push_back(piece->getCoords());
-    };
-    std::vector<int> transformation {1, 2, 3}; // starting from this code ensures we always check from a {1, 2, 3} transposition first
-    
-    // a bit clunky, but this allows us to avoid an unecessary initial transformation
-    // and prioritize searching the untransformed hash + its mirror first
-    // check the initial hash at all depths
-    for (int i = 1; i <= maxDepth; i++)
-    {
-        _hash.changeDepth(i);
-        target = _transTable.find(_hash.hash);
-        if (target != nullptr)
-        {
-            _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
-            _hash.hash = originalHash;
-            return transformation;
-        };
-    };
-
-    // Check the first mirror at all depths
-    _mirror(transformation);
-    for (unsigned int i = 0; i < coords.size(); i++)
-    {
-        _hash.invertPiece(coords[i], pieces[i]->code);
-        _mirror(coords[i]);
-        _hash.invertPiece(coords[i], pieces[i]->code);
-    };
-
-    for (int i = 1; i <= maxDepth; i++)
-    {
-        _hash.changeDepth(i);
-        target = _transTable.find(_hash.hash);
-        if (target != nullptr)
-        {
-            _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
-            _hash.hash = originalHash;
-            return transformation;
-        };
-    };
-
-    // check the rest
-    for (int i = 0; i < 2; i++)
-    {
-        _mirror(transformation);
-
-        for (unsigned int j = 0; j < pieces.size(); j++)
-        {
-            _hash.invertPiece(coords[j], pieces[j]->code);
-            _mirror(coords[j]);
-        };
-
-        for (int k = 0; k < 5; k++)
-        {
-            _rotate(transformation);
-
-            for (unsigned int l = 0; l < pieces.size(); l++)
-            {
-                _rotate(coords[l]);
-                _hash.invertPiece(coords[l], pieces[l]->code);
-            };
-
-            for (int m = 1; m <= maxDepth; m++)
-            {
-                _hash.changeDepth(m);
-                target = _transTable.find(_hash.hash);
-                if (target != nullptr)
-                {
-                    _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
-                    _hash.hash = originalHash;
-                    return transformation;
-                };
-            };
-        };
-    };
-
-    _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
-    _hash.hash = originalHash;
-    return {}; // return a blank transformation if we didnt find anything
-};
-
-PositionMove Engine::_findExactTransposition(std::vector<int> &transformation)
-{
-    PositionMove *target;
-    unsigned long int originalHash = _hash.hash;
-    std::vector<Piece*> pieces = _board.getAllPieces();
-    std::vector<std::vector<int>> coords;
-    for (Piece *piece: pieces)
-    {
-        coords.push_back(piece->getCoords());
-    };
-
-    for (unsigned int i = 0; i < pieces.size(); i++)
-    {
-        _hash.invertPiece(pieces[i]->getCoords(), pieces[i]->code);
-        _applyTransformation(coords[i], transformation);
-        _hash.invertPiece(coords[i], pieces[i]->code);
-    };
-
-    target = _transTable.find(_hash.hash);
-    _hash.hash = originalHash;
-
-
-    if (target == nullptr)
-    {
-        return _positionNonMove; // return a nonmove if we didnt find anything
-    }
-    else
-    {
-        PositionMove ret(*target);
-        _applyTransformation(ret.from, transformation, true);
-        _applyTransformation(ret.to, transformation, true);
-
-        return ret; 
-    };
-};
-
-std::vector<LabelMove> Engine::_findAdjacentTranspositions(std::vector<int> &transformation, int maxDepth, int currentDepth)
-{
-    PositionMove *target;
-    PositionMove temp;
-    std::vector<PositionMove> accumulator;
-    std::vector<LabelMove> retVector;
-    unsigned long int originalHash = _hash.hash;
-    std::vector<Piece*> pieces = _board.getAllPieces();
-    std::vector<std::vector<int>> coords;
-    for (Piece *piece: pieces)
-    {
-        coords.push_back(piece->getCoords());
-    };
-
-    for (unsigned int i = 0; i < pieces.size(); i++)
-    {
-        _hash.invertPiece(pieces[i]->getCoords(), pieces[i]->code);
-        _applyTransformation(coords[i], transformation);
-        _hash.invertPiece(coords[i], pieces[i]->code);
-    };
-
-    for (int j = 1; j <= maxDepth; j++)
-    {
-        _hash.changeDepth(j);
-        target = _transTable.find(_hash.hash);
-        if (target != nullptr)
-        {
-            accumulator.emplace_back(*target);
-        };
-    };
-
-    for (unsigned int k = 0; k < accumulator.size(); k++)
-    {
-        _applyTransformation(accumulator[k].from, transformation, true);
-        _applyTransformation(accumulator[k].to, transformation, true);
-
-        retVector.push_back(Utils::toLabelMove(accumulator[k], _board));
-    };
-
-    _hash.changeDepth(maxDepth - currentDepth);
-    _hash.hash = originalHash;
-    return retVector;
-};
-
- void Engine::_storeTransformedBest(PositionMove bestMove, std::vector<int> transformKey)
- {
-    unsigned long int originalHash = _hash.hash;
-    std::vector<Piece*> pieces = _board.getAllPieces();
-    std::vector<std::vector<int>> coords;
-    for (Piece *piece: pieces)
-    {
-        coords.push_back(piece->getCoords());
-    };
-
-    for (unsigned int i = 0; i < pieces.size(); i++)
-    {
-        _hash.invertPiece(coords[i], pieces[i]->code);
-        _applyTransformation(coords[i], transformKey);
-        _hash.invertPiece(coords[i], pieces[i]->code);
-    };
-
-    _applyTransformation(bestMove.to, transformKey);
-    _applyTransformation(bestMove.from, transformKey);
-
-    _transTable.insert(_hash.hash, bestMove);
-    
-    _hash.hash = originalHash;
- };
-
 
 void Engine::reset()
 {
@@ -1279,6 +784,558 @@ void Engine::reset()
     white = true;
 };
 
+
+LabelMove *Engine::validateMove(LabelMove *move)
+{
+    Piece *onBoard = _board.find(move->from);
+
+    if (*move == ReservedMoves::labelNonMove)
+    {
+        return nullptr;
+    };
+
+    if (move->pass)
+    {
+        std::vector<LabelMove> moves = genAllMoves();
+        if (moves[0] == *move) // if there are no moves available, genAllMoves returns a vector with a pass move as its only member
+        {
+            return move;
+        }
+        else
+        {
+            return nullptr; // if there is a choice to move, disallow passing
+        };
+    };
+
+    if ((!white && move->code < PieceCodes::bQ) ||
+        (white && move->code >= PieceCodes::bQ))
+    {
+        return nullptr;
+    };
+
+    //Is this asking us to place a piece which is already on the board?
+    if (move->newPiece)
+    {
+        // if a piece with this label is on the board, do this
+        if (onBoard != nullptr)
+        {
+            // if there are still more pieces in this category to place, do this
+            if (_pieceConfig[move->code] - _board.counts[move->code] > 0)
+            {
+                // update the from label with the next valid label
+                move->from = _board.nextLabel(move->code);
+            }
+            else
+            {
+                // otherwise, return nullptr
+                return nullptr;
+            };
+        }
+        else if (move->from != _board.nextLabel(move->code))
+        {
+            move->from = _board.nextLabel(move->code);
+        };
+
+        // check to see if this is a valid placement move
+        PositionMove check;
+        PositionMove candidate = Utils::toPositionMove(*move, _board);
+        std::vector<LabelMove> placements = _genPlacementMoves();
+
+        for (LabelMove m: placements)
+        {
+            check = Utils::toPositionMove(m, _board);
+
+            if (check == candidate)
+            {
+                return move;
+            };
+        };
+
+        return nullptr;
+    }
+    else
+    {
+        if ((!_board.wQueen && move->code < PieceCodes::bQ) ||
+            (!_board.bQueen && move->code >= PieceCodes::bQ))
+        {
+            return nullptr;
+        };
+
+        if (onBoard != nullptr)
+        {
+            if (onBoard->isTopped)
+            {
+                return nullptr;
+            };
+            
+            std::set<std::vector<int>> pinned = _board.getPinned();
+            if (pinned.find(onBoard->getCoords()) != pinned.end())
+            {
+                return nullptr;
+            };
+
+
+            std::vector<LabelMove> possibleMoves;
+            switch (move->code % 5)
+            {
+                case PieceCodes::wQ:
+                    possibleMoves = _genQueenMoves(move->from);
+                    break;
+                case PieceCodes::wA:
+                    possibleMoves = _genAntMoves(move->from);
+                    break;
+                case PieceCodes::wB:
+                    possibleMoves = _genBeetleMoves(move->from);
+                    break;
+                case PieceCodes::wG:
+                    possibleMoves = _genHopperMoves(move->from);
+                    break;
+                case PieceCodes::wS:
+                    possibleMoves = _genSpiderMoves(move->from);
+                    break;
+                default:
+                    std::cout << "err Invalid piece code detected in validateMove" << std::endl;
+                    return nullptr;
+                    break;
+            };
+
+            PositionMove check;
+            PositionMove candidate = Utils::toPositionMove(*move, _board);
+
+            for (LabelMove m: possibleMoves)
+            {
+                check = Utils::toPositionMove(m, _board);
+
+                if (check == candidate)
+                {
+                    return move;
+                };
+            };
+            
+            return nullptr;
+        }
+        else
+        {
+            return nullptr;
+        };
+    };
+};
+
+
+LabelMove Engine::stringToMove(std::string moveString)
+{
+    // maybe regex check to start?s
+
+    std::vector<std::string> components = Utils::tokenize(moveString, ' '); // need a better whitespace check
+    
+    // a failed tokenization returns a vector containing a single empty string
+    if (components[0] == "")
+    {  
+        // throw some error - this should never occur unless makeMove is called by something without a regex check
+        std::cout << "err Empty movestring detected in Board::_stringToMove" << std::endl;
+        return LabelMove();
+    }
+    else
+    {
+        // this is a first move or a pass move
+        if (components.size() == 1)
+        {
+            return LabelMove(components[0]);
+        }
+        // this is a normal move
+        else
+        {
+            int direction = -1;
+            int labelLength = 3;
+            std::string destination = "";
+            bool newPiece = _board.find(components[0]) == nullptr;
+
+            // queen check
+            std::regex pattern("[bw]Q");
+            if (std::regex_search(components[1], pattern) == true)
+            {
+                labelLength = 2;
+            };
+
+            // find direction if direction symbol precedes the destination piece
+            switch (components[1][0])
+            {
+                case '\\':
+                    direction = Directions::UpLeft;
+                    destination = components[1].substr(1, labelLength);
+                    break;
+                case '-':
+                    direction = Directions::Left;
+                    destination = components[1].substr(1, labelLength);
+                    break; 
+                case '/':
+                    direction = Directions::DownLeft;
+                    destination = components[1].substr(1, labelLength);
+                    break; 
+                default:
+                    break;
+            };
+            // find direction if direction symbol comes after the destination piece
+            if (destination == "")
+            {
+                switch (components[1][labelLength])
+                {
+                    case '\\':
+                        direction = Directions::DownRight;
+                        destination = components[1].substr(0, labelLength);
+                        break;
+                    case '-':
+                        direction = Directions::Right;
+                        destination = components[1].substr(0, labelLength);
+                        break; 
+                    case '/':
+                        direction = Directions::UpRight;
+                        destination = components[1].substr(0, labelLength);
+                        break; 
+                    default:
+                        break;
+                };
+            };
+            
+            // Malformed moveString
+            if (direction == -1)
+            {
+                return ReservedMoves::labelNonMove;
+            };
+            
+            destination = Utils::strip(destination);
+            return LabelMove(components[0], destination, direction, newPiece);
+        };
+    };
+};
+
+
+void Engine::setTableSize(int bytes) 
+{ 
+    _transTable.setMaxSize(bytes); 
+};
+
+
+void Engine::_recenter()
+{
+    std::vector<int> centroid = _board.getCenter();
+    std::vector<Piece*> pieces = _board.getAllPieces();
+
+    // clear the hash
+    for (Piece *piece: pieces)
+    {
+        _hash.invertPiece(piece->getCoords(), piece->code);
+    };
+
+    // recenter the board object
+    _board.recenter(centroid);
+
+    // rebuild the hash
+    for (Piece *piece: pieces)
+    {
+        _hash.invertPiece(piece->getCoords(), piece->code);
+    };
+};
+
+
+void Engine::_rotate(std::vector<int> &coords)
+// rotation clockwise around the origin
+// x, y, z -> -z, -x, -y
+{
+    int temp;
+    temp = coords[0];
+    coords[0] = -coords[2];
+    coords[2] = -coords[1];
+    coords[1] = -temp;
+};
+
+
+void Engine::_mirror(std::vector<int> &coords)
+// mirroring across the horizontal axis passing through the origin
+// x, y, z -> -y, -z, -x
+{
+    int temp;
+    temp = coords[1];
+    coords[0] = -coords[0];
+    coords[1] = -coords[2];
+    coords[2] = -temp;
+};
+
+
+/* A note about transformation keys
+
+This engine collapses equivalent (mirrored, rotated, etc) board states together into single entries in
+the transposition table. To keep track of the transformation required to get between the current board and
+its equivalent in the transposition table, this program conceives of transformation keys.
+
+Transformation keys look like this: { 1, 2, 3 }, { -3, 1, 2 }, etc.
+
+They are vectors of length 3 such that each member is an integer 1 through 3 or its negative, and no two
+members have the same absolute value.
+
+Transformation keys describe how to convert the xyz of one hex coordinate to the xyz of another (v remains
+invariant across transformations). 1-3 correspond to x-z in alphabetical order. A negative integer indicates
+the value must be multiplied by -1.
+
+Examples:
+
+coords: { -4, -2, 6, 0 } apply key: { 3, 1, 2 } -> coords: { 6, -4, -2, 0 }
+coords: { 7, -2, -5, 1 } apply key: { -2, -3, -1 } -> coords: { 2, 5, -7, 1 } (this is the equivalent of Engine::_mirror())
+
+Wherever possible, transformation keys are indicated with the variable name transformationKey in subsequent functions.
+*/
+
+void Engine::_applyTransformation(std::vector<int> &coords, std::vector<int> &transformationKey, bool reverse)
+{
+    if (reverse)
+    {   
+        int position;
+        int sign;
+        std::vector<int> result(3, 0);
+
+        for (int i = 0; i < 3; i++)
+        {
+            position = std::abs(transformationKey[i]);
+            sign = transformationKey[i] < 0 ? -1 : 1;
+            result[position - 1] = sign * (i + 1);
+        };
+
+        _applyTransformation(coords, result);
+    }
+    else
+    {
+        std::vector<int> temp;
+        std::vector<int> signs;
+        std::vector<int> positions;
+        for (int el: transformationKey)
+        {
+            signs.push_back(el < 0 ? -1 : 1);
+            positions.push_back(std::abs(el) - 1);
+        };
+
+        temp = {signs[0] * coords[positions[0]], 
+                signs[1] * coords[positions[1]], 
+                signs[2] * coords[positions[2]]};
+
+        for (int i = 0; i < 3; i++)
+        {
+            coords[i] = temp[i];
+        };
+    };
+};
+
+
+std::vector<int> Engine::_findTransformationKey(int maxDepth, int currentDepth)
+{
+    PositionMove *target;
+
+    unsigned long int originalHash = _hash.hash;
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    std::vector<std::vector<int>> coords;
+    for (Piece *piece: pieces)
+    {
+        coords.push_back(piece->getCoords());
+    };
+    std::vector<int> transformationKey {1, 2, 3};
+    
+    // a bit clunky, but this allows us to avoid an unecessary initial transformation
+    // and prioritize searching the untransformed hash + its mirror first
+    // check the initial hash at all depths
+    for (int i = 1; i <= maxDepth; i++)
+    {
+        _hash.changeDepth(i);
+        target = _transTable.find(_hash.hash);
+        if (target != nullptr)
+        {
+            _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
+            _hash.hash = originalHash;
+            return transformationKey;
+        };
+    };
+
+    // Check the first mirror at all depths
+    _mirror(transformationKey);
+    for (unsigned int i = 0; i < coords.size(); i++)
+    {
+        _hash.invertPiece(coords[i], pieces[i]->code);
+        _mirror(coords[i]);
+        _hash.invertPiece(coords[i], pieces[i]->code);
+    };
+
+    for (int i = 1; i <= maxDepth; i++)
+    {
+        _hash.changeDepth(i);
+        target = _transTable.find(_hash.hash);
+        if (target != nullptr)
+        {
+            _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
+            _hash.hash = originalHash;
+            return transformationKey;
+        };
+    };
+
+    // check the rest
+    for (int i = 0; i < 2; i++)
+    {
+        _mirror(transformationKey);
+
+        for (unsigned int j = 0; j < pieces.size(); j++)
+        {
+            _hash.invertPiece(coords[j], pieces[j]->code);
+            _mirror(coords[j]);
+        };
+
+        for (int k = 0; k < 5; k++)
+        {
+            _rotate(transformationKey);
+
+            for (unsigned int l = 0; l < pieces.size(); l++)
+            {
+                _rotate(coords[l]);
+                _hash.invertPiece(coords[l], pieces[l]->code);
+            };
+
+            for (int m = 1; m <= maxDepth; m++)
+            {
+                _hash.changeDepth(m);
+                target = _transTable.find(_hash.hash);
+                if (target != nullptr)
+                {
+                    _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
+                    _hash.hash = originalHash;
+                    return transformationKey;
+                };
+            };
+        };
+    };
+
+    _hash.changeDepth(maxDepth - currentDepth); // this is to reset the hash's depth variable
+    _hash.hash = originalHash;
+    return {}; // return a blank transformation if we didnt find anything
+};
+
+
+PositionMove Engine::_findExactTransposition(std::vector<int> &transformationKey)
+{
+    PositionMove *target;
+    unsigned long int originalHash = _hash.hash;
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    std::vector<std::vector<int>> coords;
+    for (Piece *piece: pieces)
+    {
+        coords.push_back(piece->getCoords());
+    };
+
+    // apply the transformation key across our piece set, then rebuild the hash
+    for (unsigned int i = 0; i < pieces.size(); i++)
+    {
+        _hash.invertPiece(pieces[i]->getCoords(), pieces[i]->code);
+        _applyTransformation(coords[i], transformationKey);
+        _hash.invertPiece(coords[i], pieces[i]->code);
+    };
+
+    // attempt to find an exact match in the transposition table
+    target = _transTable.find(_hash.hash);
+    _hash.hash = originalHash; // revert hash regardless of result
+
+    // if we found nothing, return a nonmove
+    if (target == nullptr)
+    {
+        return ReservedMoves::positionNonMove;
+    }
+    // else convert the move we found to one compatible with the current board
+    else
+    {
+        PositionMove ret(*target);
+        _applyTransformation(ret.from, transformationKey, true);
+        _applyTransformation(ret.to, transformationKey, true);
+
+        return ret; 
+    };
+};
+
+
+std::vector<LabelMove> Engine::_findAdjacentTranspositions(std::vector<int> &transformationKey, int maxDepth, int currentDepth)
+{
+    PositionMove *target;
+    PositionMove temp;
+    std::vector<PositionMove> accumulator;
+    std::vector<LabelMove> retVector;
+
+    unsigned long int originalHash = _hash.hash;
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    std::vector<std::vector<int>> coords;
+    for (Piece *piece: pieces)
+    {
+        coords.push_back(piece->getCoords());
+    };
+
+    // apply the transformation key across our piece set, then rebuild the hash
+    for (unsigned int i = 0; i < pieces.size(); i++)
+    {
+        _hash.invertPiece(pieces[i]->getCoords(), pieces[i]->code);
+        _applyTransformation(coords[i], transformationKey);
+        _hash.invertPiece(coords[i], pieces[i]->code);
+    };
+
+    // for each depth value possible given the current search, look for a move in the tranposition table
+    for (int j = 1; j <= maxDepth; j++)
+    {
+        _hash.changeDepth(j);
+        target = _transTable.find(_hash.hash);
+        if (target != nullptr)
+        {
+            accumulator.emplace_back(*target);
+        };
+    };
+
+    // for each move move, convert the move to one compatible with the current board
+    for (unsigned int k = 0; k < accumulator.size(); k++)
+    {
+        _applyTransformation(accumulator[k].from, transformationKey, true);
+        _applyTransformation(accumulator[k].to, transformationKey, true);
+
+        retVector.push_back(Utils::toLabelMove(accumulator[k], _board));
+    };
+
+    // revert the hash and return all found moves (retVector will be empty if none found)
+    _hash.changeDepth(maxDepth - currentDepth);
+    _hash.hash = originalHash;
+    return retVector;
+};
+
+
+void Engine::_storeTransformedBest(PositionMove bestMove, std::vector<int> transformationKey)
+ {
+    unsigned long int originalHash = _hash.hash;
+    std::vector<Piece*> pieces = _board.getAllPieces();
+    std::vector<std::vector<int>> coords;
+    for (Piece *piece: pieces)
+    {
+        coords.push_back(piece->getCoords());
+    };
+
+    // apply the transformation key across our piece set, then rebuild the hash
+    for (unsigned int i = 0; i < pieces.size(); i++)
+    {
+        _hash.invertPiece(coords[i], pieces[i]->code);
+        _applyTransformation(coords[i], transformationKey);
+        _hash.invertPiece(coords[i], pieces[i]->code);
+    };
+
+    // apply the transformation key to the best move found at this position
+    _applyTransformation(bestMove.to, transformationKey);
+    _applyTransformation(bestMove.from, transformationKey);
+
+    // store the move
+    _transTable.insert(_hash.hash, bestMove);
+    
+    // revert the hash
+    _hash.hash = originalHash;
+ };
+
+
+/* DEBUG CODE BEYOND THIS POINT */
 
 std::string Engine::toCoordString()
 {

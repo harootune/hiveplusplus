@@ -14,6 +14,7 @@
 #include <set>
 #include <chrono>
 
+
 enum GameStates
 // An enumeration of possible gamestates (gamestate codes)
 {
@@ -23,6 +24,15 @@ enum GameStates
     WhiteWins,
     BlackWins
 };
+
+
+namespace ReservedMoves
+{
+    // TODO: Make the initialization of nonmoves explicit
+    const LabelMove labelNonMove = LabelMove(); 
+    const PositionMove positionNonMove = PositionMove();
+};
+
 
 class Engine
 // The Hive Engine, which tracks a board and handles move recommendation
@@ -68,11 +78,9 @@ class Engine
         // Converts a move string to a Move object -- maybe move to utils?
         LabelMove stringToMove(std::string moveString);
         // Change the size of the composited transposition table
-        void setTableSize(int bytes) { _transTable.setMaxSize(bytes); };
-
+        void setTableSize(int bytes);
         
         /* DEBUG */
-        int score();
         std::string toCoordString();
 
     private:
@@ -85,6 +93,8 @@ class Engine
         TranspositionTable _transTable;
         // Tracks the location of pieces and allows for easy traversal between them
         Board _board;
+        // The default depth that the board's hash is set to between searches
+        int _defaultDepth;
                             
         /* Move Generation */
         // A board traversal used to find valid move destinations for all but the grasshopper
@@ -117,25 +127,22 @@ class Engine
         int _negaMaxSearch(int alpha, int beta, int depth, int maxDepth, int duration, 
                             std::chrono::time_point<std::chrono::high_resolution_clock> &start, 
                             std::vector<PositionMove> &killerMoves);
+
+        /* Hash Transformation */
         // Rotate a coordinate clockwise around the origin
         void _rotate(std::vector<int> &coords);
         // Mirror a coordinate across the origin
         void _mirror(std::vector<int> &coords);
-        // Apply a combinations of mirrors or rotations represented with a 3-item int vector
-        void _applyTransformation(std::vector<int> &coords, std::vector<int> &transformation, bool reverse = false);
+        // Apply a transformation key to the current hash
+        void _applyTransformation(std::vector<int> &coords, std::vector<int> &transformationKey, bool reverse = false);
         // Find a rotation/mirror combination with a valid transposition, if any
-        std::vector<int> _findTransposedRotation(int maxDepth, int currentDepth);
-        // Find an exact transposition of the current game and search state
-        PositionMove _findExactTransposition(std::vector<int> &transformation);
-        // Find all transpositions of the current gamestate, regardless of search state
-        std::vector<LabelMove> _findAdjacentTranspositions(std::vector<int> &transformation, int maxDepth, int currentDepth);
+        std::vector<int> _findTransformationKey(int maxDepth, int currentDepth);
+        // Find an exact transformed transposition of the current game and search state in the transposition table
+        PositionMove _findExactTransposition(std::vector<int> &transformationKey);
+        // Find all transformed transpositions of the current gamestate, regardless of search state, in the transposition table
+        std::vector<LabelMove> _findAdjacentTranspositions(std::vector<int> &transformationKey, int maxDepth, int currentDepth);
         // Store a best move to a transformed transposition in the trans table
-        void _storeTransformedBest(PositionMove bestMove, std::vector<int> transformKey);
-
-        /* Misc */
-        LabelMove _labelNonMove;
-        PositionMove _positionNonMove;
-        int _defaultDepth = 1000000;
+        void _storeTransformedBest(PositionMove bestMove, std::vector<int> transformationKey);
 };
 
 #endif
